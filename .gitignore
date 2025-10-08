@@ -39,3 +39,16 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Node
+npm-debug.log
+yarn-error.log
+
+# Expo / React Native
+.expo-shared/
+build/
+android/
+ios/
+
+# Mac / VSCode
+.vscode/
