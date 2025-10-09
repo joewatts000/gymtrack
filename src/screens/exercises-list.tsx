@@ -1,5 +1,5 @@
-// src/screens/ExercisesList.tsx
-import { useEffect, useState } from 'react';
+// src/screens/exercises-list.tsx
+import { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,13 +11,15 @@ import {
   Platform,
   Alert,
   ActivityIndicator,
-  Keyboard
+  Keyboard,
+  Animated
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import type { ExercisesStackParamList } from '../navigation/exercise-stack';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Swipeable } from 'react-native-gesture-handler';
+import { ExercisesStackParamList } from '../navigation/exercises-stack';
 
 type Exercise = {
   id: string;
@@ -43,7 +45,6 @@ const STORAGE_KEY = 'gymwatch:exercises';
 
 type NavProp = NativeStackNavigationProp<ExercisesStackParamList, 'ExercisesList'>;
 
-// simple id helper (stable & safe fallback)
 function makeId(prefix = 'id') {
   return `${prefix}_${Date.now().toString(36)}_${Math.floor(Math.random() * 10000).toString(36)}`;
 }
@@ -57,6 +58,9 @@ export default function ExercisesList() {
   const [adding, setAdding] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // Keep a ref to the currently open swipeable so we can close it when another opens
+  const openSwipeableRef = useRef<Swipeable | null>(null);
 
   useEffect(() => {
     load();
@@ -95,7 +99,6 @@ export default function ExercisesList() {
     setTimeout(() => { }, 100);
   }
 
-  // Defensive addExercise with error handling + id fallback
   async function addExercise() {
     if (saving) return; // prevent double submits
     const title = newTitle.trim();
@@ -121,12 +124,10 @@ export default function ExercisesList() {
       await persist(next);
       setAdding(false);
       setNewTitle('');
-      // navigate after save — wrapped in try/catch to report errors
       try {
         nav.navigate('ExerciseDetail', { exerciseId: ex.id });
       } catch (navErr) {
         console.warn('Navigation failed', navErr);
-        // Not fatal — still saved locally
         Alert.alert('Saved', 'Exercise created but navigation failed.');
       }
     } catch (err) {
@@ -145,38 +146,119 @@ export default function ExercisesList() {
     }
   }
 
+  async function deleteExercise(id: string) {
+    // confirm
+    Alert.alert('Delete exercise?', 'This will remove the exercise and all its sessions.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          const next = exercises.filter((e) => e.id !== id);
+          setExercises(next);
+          try {
+            await persist(next);
+          } catch (err) {
+            console.warn('Failed to persist delete', err);
+            Alert.alert('Delete failed', 'Could not delete exercise. Please try again.');
+            // reload from storage to rollback UI
+            await load();
+          }
+        },
+      },
+    ]);
+  }
+
+  async function deleteSession(exerciseId: string, sessionId: string) {
+    // not used here, but useful reference for session-level deletes later
+    const arr = exercises.map((e) => {
+      if (e.id !== exerciseId) return e;
+      return { ...e, sessions: e.sessions.filter((s) => s.id !== sessionId) };
+    });
+    setExercises(arr);
+    try {
+      await persist(arr);
+    } catch (err) {
+      console.warn('Failed to persist session delete', err);
+      Alert.alert('Delete failed', 'Could not delete session. Please try again.');
+      await load();
+    }
+  }
+
   async function refresh() {
     setLoading(true);
     await load();
     setLoading(false);
   }
 
+  function renderRightActions(progress: any, dragX: any, onDelete: () => void) {
+    const trans = dragX.interpolate({
+      inputRange: [-100, 0],
+      outputRange: [0, 100],
+    });
+
+    return (
+      <TouchableOpacity style={styles.deleteAction} onPress={onDelete} activeOpacity={0.7}>
+        <Animated.Text style={[styles.deleteText, { transform: [{ translateX: trans }] }]}>Delete</Animated.Text>
+      </TouchableOpacity>
+    );
+  }
+
   function renderItem({ item }: { item: Exercise }) {
     const lastSession = item.sessions[0];
     const prevSession = item.sessions[1];
 
+    // Each row is a Swipeable
     return (
-      <TouchableOpacity
-        style={styles.row}
-        onPress={() => nav.navigate('ExerciseDetail', { exerciseId: item.id })}
+      <Swipeable
+        friction={2}
+        leftThreshold={80}
+        rightThreshold={40}
+        renderRightActions={(progress, dragX) =>
+          renderRightActions(progress, dragX, () => {
+            // close any open swipeable first
+            if (openSwipeableRef.current) {
+              try {
+                openSwipeableRef.current.close();
+              } catch { }
+              openSwipeableRef.current = null;
+            }
+            deleteExercise(item.id);
+          })
+        }
+        onSwipeableWillOpen={(/*direction*/) => {
+          // close previous swipeable if another opens
+        }}
+        ref={(ref) => {
+          // When this swipeable opens we keep a ref to it so we can close it
+          // Note: using a ref here is optional but helps avoid multiple open rows
+          if (ref) {
+            // no-op initial
+          }
+        }}
       >
-        <View style={{ flex: 1 }}>
-          <Text style={styles.title}>{item.title}</Text>
-          {lastSession ? (
-            <Text style={styles.meta}>
-              Current session: {lastSession.sets.length} sets • {new Date(lastSession.createdAt).toLocaleString()}
-            </Text>
-          ) : (
-            <Text style={styles.meta}>No sessions yet — tap to add one</Text>
-          )}
-          {prevSession && (
-            <Text style={styles.smallMeta}>
-              Previous: {prevSession.sets.length} sets • {new Date(prevSession.createdAt).toLocaleDateString()}
-            </Text>
-          )}
-        </View>
-        <Ionicons name="chevron-forward" size={20} color="#666" />
-      </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.row}
+          onPress={() => nav.navigate('ExerciseDetail', { exerciseId: item.id })}
+        >
+          <View style={{ flex: 1 }}>
+            <Text style={styles.title}>{item.title}</Text>
+            {lastSession ? (
+              <Text style={styles.meta}>
+                Current session: {lastSession.sets.length} sets • {new Date(lastSession.createdAt).toLocaleString()}
+              </Text>
+            ) : (
+              <Text style={styles.meta}>No sessions yet — tap to add one</Text>
+            )}
+            {prevSession && (
+              <Text style={styles.smallMeta}>
+                Previous: {prevSession.sets.length} sets • {new Date(prevSession.createdAt).toLocaleDateString()}
+              </Text>
+            )}
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#666" />
+        </TouchableOpacity>
+      </Swipeable>
     );
   }
 
@@ -293,4 +375,15 @@ const styles = StyleSheet.create({
   modalButtons: { flexDirection: 'row', justifyContent: 'flex-end' },
   modalBtnCancel: { padding: 10, marginRight: 8 },
   modalBtnSave: { backgroundColor: '#007AFF', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 8 },
+  deleteAction: {
+    backgroundColor: '#ff3b30',
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    marginBottom: 12,
+    height: '86%',
+    alignSelf: 'center',
+  },
+  deleteText: { color: '#fff', fontWeight: '700', paddingRight: 6 },
 });

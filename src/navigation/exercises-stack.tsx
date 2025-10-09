@@ -1,3 +1,4 @@
+// src/navigation/exercises-stack.tsx
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import ExercisesList from '../screens/exercises-list';
 import ExerciseDetail from '../screens/exercises-detail';

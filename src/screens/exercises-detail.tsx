@@ -9,10 +9,13 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Platform,
-  Alert
+  Alert,
+  Modal,
+  Pressable,
+  SafeAreaView
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { ExercisesStackParamList } from '../navigation/exercise-stack';
+import type { ExercisesStackParamList } from '../navigation/exercises-stack';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -40,6 +43,12 @@ type SetItem = {
 
 const STORAGE_KEY = 'gymwatch:exercises';
 
+// A reasonable default emoji palette — edit to taste
+const EMOJI_PALETTE = [
+  '💪', '😅', '😓', '🔥', '😰', '😵‍💫', '😎', '🤯', '🙂', '🙃',
+  '😬', '😣', '😫', '🤝', '✨', '🏋️', '🏃', '🧘', '🤸‍♂️', '🥵',
+];
+
 export default function ExerciseDetail({ route, navigation }: Props) {
   const { exerciseId } = route.params;
   const [exercise, setExercise] = useState<Exercise | null>(null);
@@ -47,6 +56,11 @@ export default function ExerciseDetail({ route, navigation }: Props) {
 
   // For building a new session
   const [sets, setSets] = useState<SetItem[]>([]);
+
+  // Emoji picker state
+  const [emojiPickerVisible, setEmojiPickerVisible] = useState(false);
+  const [emojiPickerTargetSetId, setEmojiPickerTargetSetId] = useState<string | null>(null);
+  const [customEmojiInput, setCustomEmojiInput] = useState('');
 
   useEffect(() => {
     loadExercise();
@@ -116,6 +130,57 @@ export default function ExerciseDetail({ route, navigation }: Props) {
     }
   }
 
+  // Emoji picker helpers
+  function openEmojiPickerForSet(setId: string) {
+    setEmojiPickerTargetSetId(setId);
+    setCustomEmojiInput('');
+    setEmojiPickerVisible(true);
+  }
+
+  function chooseEmoji(emoji: string) {
+    if (!emojiPickerTargetSetId) return;
+    updateSet(emojiPickerTargetSetId, { difficultyEmoji: emoji });
+    setEmojiPickerVisible(false);
+    setEmojiPickerTargetSetId(null);
+  }
+
+  function chooseCustomEmoji() {
+    const val = customEmojiInput.trim();
+    if (!val) {
+      Alert.alert('Enter an emoji');
+      return;
+    }
+    chooseEmoji(val);
+  }
+
+  async function deleteSession(sessionId: string) {
+    if (!exercise) return;
+    Alert.alert('Delete session?', 'This will remove the saved session.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            const raw = await AsyncStorage.getItem(STORAGE_KEY);
+            const arr: Exercise[] = raw ? JSON.parse(raw) : [];
+            const next = arr.map((e) => {
+              if (e.id !== exercise.id) return e;
+              return { ...e, sessions: e.sessions.filter((s) => s.id !== sessionId) };
+            });
+            await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+            // refresh local exercise state
+            const updated = next.find((e) => e.id === exercise.id) || null;
+            setExercise(updated);
+          } catch (err) {
+            console.warn('Failed to delete session', err);
+            Alert.alert('Delete failed', 'Could not delete session. Please try again.');
+          }
+        },
+      },
+    ]);
+  }
+
   if (!exercise) {
     return (
       <View style={styles.center}>
@@ -131,7 +196,7 @@ export default function ExerciseDetail({ route, navigation }: Props) {
       style={{ flex: 1 }}
       behavior={Platform.select({ ios: 'padding', android: undefined })}
     >
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container}>
         <Text style={styles.title}>{exercise.title}</Text>
 
         <View style={styles.section}>
@@ -142,6 +207,7 @@ export default function ExerciseDetail({ route, navigation }: Props) {
             renderItem={({ item, index }) => (
               <View style={styles.setRow}>
                 <Text style={styles.setIndex}>{index + 1}</Text>
+
                 <TextInput
                   style={styles.smallInput}
                   placeholder="kg"
@@ -156,11 +222,16 @@ export default function ExerciseDetail({ route, navigation }: Props) {
                   value={item.reps === null ? '' : String(item.reps)}
                   onChangeText={(t) => updateSet(item.id, { reps: t === '' ? null : Number(t) })}
                 />
-                <TextInput
-                  style={[styles.smallInput, { width: 64 }]}
-                  value={item.difficultyEmoji}
-                  onChangeText={(t) => updateSet(item.id, { difficultyEmoji: t || '💪' })}
-                />
+
+                {/* Emoji picker trigger */}
+                <TouchableOpacity
+                  style={styles.emojiPill}
+                  onPress={() => openEmojiPickerForSet(item.id)}
+                  accessibilityLabel="Pick difficulty emoji"
+                >
+                  <Text style={styles.emojiText}>{item.difficultyEmoji}</Text>
+                </TouchableOpacity>
+
                 <TouchableOpacity onPress={() => removeSet(item.id)} style={styles.removeBtn}>
                   <Text style={{ color: '#ff3b30' }}>Remove</Text>
                 </TouchableOpacity>
@@ -201,7 +272,51 @@ export default function ExerciseDetail({ route, navigation }: Props) {
             )}
           </View>
         )}
-      </View>
+
+        {/* Emoji picker modal */}
+        <Modal visible={emojiPickerVisible} animationType="slide" transparent>
+          <View style={styles.modalOverlay}>
+            <View style={styles.pickerContainer}>
+              <Text style={styles.pickerTitle}>Pick an emoji</Text>
+
+              <FlatList
+                data={EMOJI_PALETTE}
+                numColumns={5}
+                keyExtractor={(e) => e}
+                renderItem={({ item }) => (
+                  <Pressable
+                    onPress={() => chooseEmoji(item)}
+                    style={({ pressed }) => [
+                      styles.emojiButton,
+                      pressed ? { opacity: 0.6 } : null,
+                    ]}
+                  >
+                    <Text style={styles.emojiBig}>{item}</Text>
+                  </Pressable>
+                )}
+                contentContainerStyle={{ paddingBottom: 10 }}
+              />
+
+              <Text style={{ marginTop: 6, marginBottom: 4 }}>Or paste a custom emoji</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <TextInput
+                  style={[styles.input, { flex: 1 }]}
+                  placeholder="e.g. 😬"
+                  value={customEmojiInput}
+                  onChangeText={setCustomEmojiInput}
+                />
+                <TouchableOpacity style={styles.pickerChooseBtn} onPress={chooseCustomEmoji}>
+                  <Text style={{ color: '#fff' }}>Use</Text>
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity style={styles.pickerClose} onPress={() => setEmojiPickerVisible(false)}>
+                <Text style={{ color: '#007AFF' }}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      </SafeAreaView>
     </KeyboardAvoidingView>
   );
 }
@@ -240,4 +355,52 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 8,
   },
+
+  // emoji pill
+  emojiPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#eee',
+    minWidth: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+  emojiText: { fontSize: 20 },
+
+  // picker modal
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    backgroundColor: 'rgba(20,20,20,0.45)',
+    padding: 20,
+  },
+  pickerContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    maxHeight: '80%',
+  },
+  pickerTitle: { fontSize: 16, fontWeight: '700', marginBottom: 8 },
+  emojiButton: {
+    width: 56,
+    height: 56,
+    alignItems: 'center',
+    justifyContent: 'center',
+    margin: 6,
+    borderRadius: 8,
+    backgroundColor: '#fafafa',
+  },
+  emojiBig: { fontSize: 28 },
+  input: {
+    borderColor: '#eee',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 12,
+  },
+  pickerChooseBtn: { backgroundColor: '#007AFF', paddingHorizontal: 12, paddingVertical: 10, borderRadius: 8 },
+  pickerClose: { marginTop: 10, alignItems: 'center' },
 });
