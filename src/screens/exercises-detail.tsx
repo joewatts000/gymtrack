@@ -1,4 +1,3 @@
-// src/screens/ExerciseDetail.tsx
 import { useEffect, useState } from 'react';
 import {
   View,
@@ -43,7 +42,6 @@ type SetItem = {
 
 const STORAGE_KEY = 'gymwatch:exercises';
 
-// A reasonable default emoji palette — edit to taste
 const EMOJI_PALETTE = [
   '💪', '😅', '😓', '🔥', '😰', '😵‍💫', '😎', '🤯', '🙂', '🙃',
   '😬', '😣', '😫', '🤝', '✨', '🏋️', '🏃', '🧘', '🤸‍♂️', '🥵',
@@ -54,10 +52,8 @@ export default function ExerciseDetail({ route, navigation }: Props) {
   const [exercise, setExercise] = useState<Exercise | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // For building a new session
   const [sets, setSets] = useState<SetItem[]>([]);
 
-  // Emoji picker state
   const [emojiPickerVisible, setEmojiPickerVisible] = useState(false);
   const [emojiPickerTargetSetId, setEmojiPickerTargetSetId] = useState<string | null>(null);
   const [customEmojiInput, setCustomEmojiInput] = useState('');
@@ -130,7 +126,6 @@ export default function ExerciseDetail({ route, navigation }: Props) {
     }
   }
 
-  // Emoji picker helpers
   function openEmojiPickerForSet(setId: string) {
     setEmojiPickerTargetSetId(setId);
     setCustomEmojiInput('');
@@ -169,7 +164,6 @@ export default function ExerciseDetail({ route, navigation }: Props) {
               return { ...e, sessions: e.sessions.filter((s) => s.id !== sessionId) };
             });
             await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-            // refresh local exercise state
             const updated = next.find((e) => e.id === exercise.id) || null;
             setExercise(updated);
           } catch (err) {
@@ -356,7 +350,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
 
-  // emoji pill
   emojiPill: {
     paddingHorizontal: 10,
     paddingVertical: 6,
@@ -370,7 +363,6 @@ const styles = StyleSheet.create({
   },
   emojiText: { fontSize: 20 },
 
-  // picker modal
   modalOverlay: {
     flex: 1,
     justifyContent: 'center',

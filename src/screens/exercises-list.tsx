@@ -1,4 +1,3 @@
-// src/screens/exercises-list.tsx
 import { useEffect, useState, useRef } from 'react';
 import {
   View,
@@ -24,7 +23,7 @@ import { ExercisesStackParamList } from '../navigation/exercises-stack';
 type Exercise = {
   id: string;
   title: string;
-  sessions: Session[]; // newest first
+  sessions: Session[];
   createdAt: string;
 };
 
@@ -53,8 +52,6 @@ export default function ExercisesList() {
   const nav = useNavigation<NavProp>();
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [loading, setLoading] = useState(true);
-
-  // Modal & save state
   const [adding, setAdding] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [saving, setSaving] = useState(false);
@@ -147,7 +144,6 @@ export default function ExercisesList() {
   }
 
   async function deleteExercise(id: string) {
-    // confirm
     Alert.alert('Delete exercise?', 'This will remove the exercise and all its sessions.', [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -208,7 +204,6 @@ export default function ExercisesList() {
     const lastSession = item.sessions[0];
     const prevSession = item.sessions[1];
 
-    // Each row is a Swipeable
     return (
       <Swipeable
         friction={2}
