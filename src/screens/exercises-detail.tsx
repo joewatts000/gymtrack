@@ -1,5 +1,4 @@
-// src/screens/exercise-detail.tsx
-import { useEffect, useState, useMemo, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,11 +11,8 @@ import {
   Alert,
   Modal,
   Pressable,
-  ActivityIndicator,
-  Animated,
-  Easing
+  SafeAreaView
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { ExercisesStackParamList } from '../navigation/exercises-stack';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -45,47 +41,29 @@ type SetItem = {
 };
 
 const STORAGE_KEY = 'gymwatch:exercises';
+
 const EMOJI_PALETTE = [
   '💪', '😅', '😓', '🔥', '😰', '😵‍💫', '😎', '🤯', '🙂', '🙃',
   '😬', '😣', '😫', '🤝', '✨', '🏋️', '🏃', '🧘', '🤸‍♂️', '🥵',
 ];
 
-// maximum height of the expanded history area (tweakable)
-const HISTORY_MAX_HEIGHT = 340;
-const ANIM_DURATION = 200;
-
-export default function ExerciseDetail({ route }: Props) {
+export default function ExerciseDetail({ route, navigation }: Props) {
   const { exerciseId } = route.params;
   const [exercise, setExercise] = useState<Exercise | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // For building a new session
   const [sets, setSets] = useState<SetItem[]>([]);
 
-  // Emoji picker
   const [emojiPickerVisible, setEmojiPickerVisible] = useState(false);
   const [emojiPickerTargetSetId, setEmojiPickerTargetSetId] = useState<string | null>(null);
   const [customEmojiInput, setCustomEmojiInput] = useState('');
-
-  // History expand toggle
-  const [historyExpanded, setHistoryExpanded] = useState(false);
-
-  // Animated value for expand/collapse (0 = collapsed, 1 = expanded)
-  const anim = useRef(new Animated.Value(0)).current;
+  // Create refs for the inputs
+  const weightInputRefs = useRef<{ [key: string]: TextInput | null }>({});
+  const repsInputRef = useRef<TextInput>(null);
 
   useEffect(() => {
     loadExercise();
   }, []);
-
-  useEffect(() => {
-    // animate when historyExpanded changes
-    Animated.timing(anim, {
-      toValue: historyExpanded ? 1 : 0,
-      duration: ANIM_DURATION,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: false, // animating height (layout) so native driver cannot be used
-    }).start();
-  }, [historyExpanded, anim]);
 
   async function loadExercise() {
     try {
@@ -106,10 +84,16 @@ export default function ExerciseDetail({ route }: Props) {
   }
 
   function addEmptySet() {
+    const newSetId = uuidv4(); // Generate a unique ID for the new set
     setSets((s) => [
       ...s,
-      { id: uuidv4(), weight: null, reps: null, difficultyEmoji: '💪' },
+      { id: newSetId, weight: null, reps: null, difficultyEmoji: '💪' },
     ]);
+
+    // Use a timeout to ensure the state update completes before focusing
+    setTimeout(() => {
+      weightInputRefs.current[newSetId]?.focus();
+    }, 100);
   }
 
   function updateSet(id: string, patch: Partial<SetItem>) {
@@ -118,6 +102,7 @@ export default function ExerciseDetail({ route }: Props) {
 
   function removeSet(id: string) {
     setSets((s) => s.filter((x) => x.id !== id));
+    delete weightInputRefs.current[id]; // Remove the ref for the deleted set
   }
 
   async function saveSession() {
@@ -191,7 +176,6 @@ export default function ExerciseDetail({ route }: Props) {
             await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
             const updated = next.find((e) => e.id === exercise.id) || null;
             setExercise(updated);
-            if (updated && updated.sessions.length === 0) setHistoryExpanded(false);
           } catch (err) {
             console.warn('Failed to delete session', err);
             Alert.alert('Delete failed', 'Could not delete session. Please try again.');
@@ -201,76 +185,83 @@ export default function ExerciseDetail({ route }: Props) {
     ]);
   }
 
-  const olderSessions = useMemo(() => {
-    if (!exercise) return [];
-    return exercise.sessions.slice(1);
-  }, [exercise]);
-
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.center}>
-        <ActivityIndicator />
-      </SafeAreaView>
-    );
-  }
-
   if (!exercise) {
     return (
-      <SafeAreaView style={styles.center}>
-        <Text>Exercise not found</Text>
-      </SafeAreaView>
+      <View style={styles.center}>
+        <Text style={{ fontSize: 16 }}>Exercise not found</Text>
+      </View>
     );
   }
 
-  const lastSession = exercise.sessions[0] || null;
+  const lastSession = exercise.sessions[0];
 
-  function ListHeader() {
-    return (
-      <View>
-        <Text style={styles.title}>{exercise?.title}</Text>
+  return (
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.select({ ios: 'padding', android: undefined })}
+    >
+      <SafeAreaView style={styles.container}>
+        <Text style={styles.title}>{exercise.title}</Text>
+
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Current session (unsaved)</Text>
-
           <FlatList
             data={sets}
             keyExtractor={(i) => i.id}
-            renderItem={({ item, index }) => (
-              <View style={styles.setRow}>
-                <Text style={styles.setIndex}>{index + 1}</Text>
+            renderItem={({ item, index }) => {
+              return (
+                <View style={styles.setRow}>
+                  <Text style={styles.setIndex}>{index + 1}</Text>
 
-                <TextInput
-                  style={styles.smallInput}
-                  placeholder="kg"
-                  keyboardType="numeric"
-                  value={item.weight === null ? '' : String(item.weight)}
-                  onChangeText={(t) => updateSet(item.id, { weight: t === '' ? null : Number(t) })}
-                />
-                <TextInput
-                  style={styles.smallInput}
-                  placeholder="reps"
-                  keyboardType="numeric"
-                  value={item.reps === null ? '' : String(item.reps)}
-                  onChangeText={(t) => updateSet(item.id, { reps: t === '' ? null : Number(t) })}
-                />
+                  {/* Weight Input */}
+                  <TextInput
+                    ref={(ref) => { weightInputRefs.current[item.id] = ref; }} // Assign ref dynamically
+                    style={styles.smallInput}
+                    placeholder="kg"
+                    keyboardType="numeric"
+                    value={item.weight === null ? '' : String(item.weight)}
+                    onChangeText={(t) => updateSet(item.id, { weight: t === '' ? null : Number(t) })}
+                    returnKeyType="next"
+                    onSubmitEditing={() => repsInputRef.current?.focus()} // Focus on the next input
+                  />
 
-                <TouchableOpacity
-                  style={styles.emojiPill}
-                  onPress={() => openEmojiPickerForSet(item.id)}
-                  accessibilityLabel="Pick difficulty emoji"
-                >
-                  <Text style={styles.emojiText}>{item.difficultyEmoji}</Text>
-                </TouchableOpacity>
+                  {/* Reps Input */}
+                  <TextInput
+                    ref={repsInputRef}
+                    style={styles.smallInput}
+                    placeholder="reps"
+                    keyboardType="numeric"
+                    value={item.reps === null ? '' : String(item.reps)}
+                    onChangeText={(t) => updateSet(item.id, { reps: t === '' ? null : Number(t) })}
+                    returnKeyType="next"
+                    onSubmitEditing={() => openEmojiPickerForSet(item.id)} // Open the emoji picker
+                  />
 
-                <TouchableOpacity onPress={() => removeSet(item.id)} style={styles.removeBtn}>
-                  <Text style={{ color: '#ff3b30' }}>Remove</Text>
-                </TouchableOpacity>
+                  {/* Emoji Input */}
+                  <TouchableOpacity
+                    style={styles.emojiPill}
+                    onPress={() => openEmojiPickerForSet(item.id)}
+                    accessibilityLabel="Pick difficulty emoji"
+                  >
+                    <Text style={styles.emojiText}>{item.difficultyEmoji}</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity onPress={() => removeSet(item.id)} style={styles.removeBtn}>
+                    <Text style={{ color: '#ff3b30' }}>Remove</Text>
+                  </TouchableOpacity>
+                </View>
+              );
+            }}
+            ListEmptyComponent={
+              <View style={{ padding: 8 }}>
+                <Text style={{ color: '#666' }}>No sets yet — add one</Text>
               </View>
-            )}
-            ListEmptyComponent={<Text style={{ color: '#666' }}>No sets yet — add one</Text>}
+            }
+            keyboardShouldPersistTaps="handled"
             nestedScrollEnabled={false}
           />
 
-          <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
             <TouchableOpacity style={styles.addSetBtn} onPress={addEmptySet}>
               <Text style={{ color: '#fff' }}>Add set</Text>
             </TouchableOpacity>
@@ -286,116 +277,20 @@ export default function ExerciseDetail({ route }: Props) {
             <Text style={{ color: '#444' }}>
               {new Date(lastSession.createdAt).toLocaleString()} — {lastSession.sets.length} sets
             </Text>
-            {lastSession.sets.slice(0, 4).map((s) => (
-              <Text key={s.id}>
-                {s.reps ?? '-'} reps @ {s.weight ?? '-'}kg {s.difficultyEmoji}
-              </Text>
-            ))}
-
-            {exercise?.sessions?.length && exercise?.sessions?.length > 1 && (
-              <TouchableOpacity
-                style={styles.expandToggle}
-                onPress={() => setHistoryExpanded((v) => !v)}
-              >
-                <Text style={{ color: '#007AFF' }}>
-                  {historyExpanded ? 'Collapse history' : `Expand history (${exercise.sessions.length - 1} older)`}
+            {exercise.sessions.map((session) => (
+              <View key={session.id} style={{ marginTop: 8 }}>
+                <Text style={{ fontWeight: '600' }}>
+                  {new Date(session.createdAt).toLocaleString()}
                 </Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
-      </View>
-    );
-  }
-
-  // animated height and opacity for the older-sessions container
-  const animatedHeight = anim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, HISTORY_MAX_HEIGHT],
-  });
-  const animatedOpacity = anim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 1],
-  });
-
-  return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.select({ ios: 'padding', android: undefined })}
-    >
-      <SafeAreaView style={{ flex: 1 }}>
-        <FlatList
-          data={historyExpanded ? olderSessions : []}
-          keyExtractor={(s) => s.id}
-          renderItem={({ item }) => (
-            <View style={styles.sessionCard}>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontWeight: '700' }}>{new Date(item.createdAt).toLocaleString()}</Text>
-                <Text style={{ color: '#666', marginBottom: 6 }}>{item.sets.length} sets</Text>
-                {item.sets.map((set) => (
-                  <Text key={set.id}>
-                    {set.reps ?? '-'} reps @ {set.weight ?? '-'}kg {set.difficultyEmoji}
+                {session.sets.map((s) => (
+                  <Text key={s.id}>
+                    {s.reps ?? '-'} reps @ {s.weight ?? '-'}kg {s.difficultyEmoji}
                   </Text>
                 ))}
               </View>
-
-              <View style={{ marginLeft: 12, alignItems: 'flex-end' }}>
-                <TouchableOpacity
-                  onPress={() => deleteSession(item.id)}
-                  style={styles.sessionDeleteBtn}
-                >
-                  <Text style={{ color: '#fff', fontWeight: '700' }}>Delete</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
-          ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
-          ListHeaderComponent={<ListHeader />}
-          contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
-          showsVerticalScrollIndicator
-          // footer is our animated container wrapper (so it appears below header/content)
-          ListFooterComponent={
-            <Animated.View
-              style={{
-                height: animatedHeight,
-                opacity: animatedOpacity,
-                overflow: 'hidden',
-                marginTop: 8,
-              }}
-            >
-              {/* We render the same olderSessions list inside the animated area for better UX.
-                  When collapsed, height=0 so it's effectively hidden. */}
-              <FlatList
-                data={olderSessions}
-                keyExtractor={(s) => s.id}
-                renderItem={({ item }) => (
-                  <View style={styles.sessionCard}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontWeight: '700' }}>{new Date(item.createdAt).toLocaleString()}</Text>
-                      <Text style={{ color: '#666', marginBottom: 6 }}>{item.sets.length} sets</Text>
-                      {item.sets.map((set) => (
-                        <Text key={set.id}>
-                          {set.reps ?? '-'} reps @ {set.weight ?? '-'}kg {set.difficultyEmoji}
-                        </Text>
-                      ))}
-                    </View>
-
-                    <View style={{ marginLeft: 12, alignItems: 'flex-end' }}>
-                      <TouchableOpacity
-                        onPress={() => deleteSession(item.id)}
-                        style={styles.sessionDeleteBtn}
-                      >
-                        <Text style={{ color: '#fff', fontWeight: '700' }}>Delete</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                )}
-                ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
-                nestedScrollEnabled
-              />
-            </Animated.View>
-          }
-        />
+            ))}
+          </View>
+        )}
 
         {/* Emoji picker modal */}
         <Modal visible={emojiPickerVisible} animationType="slide" transparent>
@@ -447,6 +342,7 @@ export default function ExerciseDetail({ route }: Props) {
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  container: { flex: 1, padding: 16, backgroundColor: '#fff' },
   title: { fontSize: 22, fontWeight: '700', marginBottom: 12 },
   section: { marginBottom: 18 },
   sectionTitle: { fontSize: 14, fontWeight: '700', marginBottom: 8 },
@@ -479,7 +375,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
 
-  // emoji pill
   emojiPill: {
     paddingHorizontal: 10,
     paddingVertical: 6,
@@ -493,7 +388,6 @@ const styles = StyleSheet.create({
   },
   emojiText: { fontSize: 20 },
 
-  // picker modal
   modalOverlay: {
     flex: 1,
     justifyContent: 'center',
@@ -526,21 +420,4 @@ const styles = StyleSheet.create({
   },
   pickerChooseBtn: { backgroundColor: '#007AFF', paddingHorizontal: 12, paddingVertical: 10, borderRadius: 8 },
   pickerClose: { marginTop: 10, alignItems: 'center' },
-
-  // session card
-  sessionCard: {
-    backgroundColor: '#f6f6f7',
-    padding: 12,
-    borderRadius: 10,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-  sessionDeleteBtn: {
-    backgroundColor: '#ff3b30',
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-
-  expandToggle: { marginTop: 8 },
 });
