@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import { useIsFocused } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -55,6 +56,7 @@ export default function ExercisesList() {
   const [adding, setAdding] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [saving, setSaving] = useState(false);
+  const isFocused = useIsFocused();
 
   // Keep a ref to the currently open swipeable so we can close it when another opens
   const openSwipeableRef = useRef<Swipeable | null>(null);
@@ -62,6 +64,12 @@ export default function ExercisesList() {
   useEffect(() => {
     load();
   }, []);
+
+  useEffect(() => {
+    if (isFocused) {
+      load(); // re-read AsyncStorage when screen comes into view
+    }
+  }, [isFocused]);
 
   async function load() {
     try {
