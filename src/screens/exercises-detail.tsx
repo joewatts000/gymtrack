@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,9 @@ import {
   Alert,
   Modal,
   Pressable,
-  SafeAreaView
+  SafeAreaView,
+  Keyboard,
+  TouchableWithoutFeedback
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { ExercisesStackParamList } from '../navigation/exercises-stack';
@@ -47,23 +49,56 @@ const EMOJI_PALETTE = [
   '😬', '😣', '😫', '🤝', '✨', '🏋️', '🏃', '🧘', '🤸‍♂️', '🥵',
 ];
 
-export default function ExerciseDetail({ route, navigation }: Props) {
+// allow decimal input (weight). Keeps only digits and one decimal point.
+// Accepts leading '.' (becomes '0.')
+function sanitizeDecimalInput(value: string) {
+  if (value === '') return '';
+  // replace comma with dot for locales that paste commas
+  let v = value.replace(',', '.');
+  // remove any character that's not digit or dot
+  v = v.replace(/[^0-9.]/g, '');
+  // if more than one dot, keep first only
+  const parts = v.split('.');
+  if (parts.length <= 1) return v;
+  return parts.shift() + '.' + parts.join(''); // join remaining parts without extra dots
+}
+
+// integer-only: strip anything not digit
+function sanitizeIntegerInput(value: string) {
+  if (value === '') return '';
+  return value.replace(/\D/g, '');
+}
+
+
+export default function ExerciseDetail({ route }: Props) {
   const { exerciseId } = route.params;
   const [exercise, setExercise] = useState<Exercise | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // current unsaved session sets
   const [sets, setSets] = useState<SetItem[]>([]);
 
   const [emojiPickerVisible, setEmojiPickerVisible] = useState(false);
   const [emojiPickerTargetSetId, setEmojiPickerTargetSetId] = useState<string | null>(null);
   const [customEmojiInput, setCustomEmojiInput] = useState('');
-  // Create refs for the inputs
+
+  // Refs for inputs per-set
   const weightInputRefs = useRef<{ [key: string]: TextInput | null }>({});
-  const repsInputRef = useRef<TextInput>(null);
+  const repsInputRefs = useRef<{ [key: string]: TextInput | null }>({});
 
   useEffect(() => {
     loadExercise();
   }, []);
+
+  // When the exercise loads, ensure there's at least one empty set for immediate input
+  useEffect(() => {
+    if (!loading && sets.length === 0) {
+      setTimeout(() => {
+        addEmptySet(true);
+      }, 80);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
 
   async function loadExercise() {
     try {
@@ -83,17 +118,19 @@ export default function ExerciseDetail({ route, navigation }: Props) {
     }
   }
 
-  function addEmptySet() {
-    const newSetId = uuidv4(); // Generate a unique ID for the new set
-    setSets((s) => [
-      ...s,
-      { id: newSetId, weight: null, reps: null, difficultyEmoji: '💪' },
-    ]);
+  // addEmptySet optionally focuses the new weight input when `focus` is true
+  function addEmptySet(focus = false) {
+    const newSetId = uuidv4();
+    setSets((s) => {
+      const next = [...s, { id: newSetId, weight: null, reps: null, difficultyEmoji: '💪' }];
+      return next;
+    });
 
-    // Use a timeout to ensure the state update completes before focusing
-    setTimeout(() => {
-      weightInputRefs.current[newSetId]?.focus();
-    }, 100);
+    if (focus) {
+      setTimeout(() => {
+        weightInputRefs.current[newSetId]?.focus();
+      }, 120);
+    }
   }
 
   function updateSet(id: string, patch: Partial<SetItem>) {
@@ -101,8 +138,13 @@ export default function ExerciseDetail({ route, navigation }: Props) {
   }
 
   function removeSet(id: string) {
-    setSets((s) => s.filter((x) => x.id !== id));
-    delete weightInputRefs.current[id]; // Remove the ref for the deleted set
+    setSets((s) => {
+      const next = s.filter((x) => x.id !== id);
+      return next;
+    });
+
+    if (weightInputRefs.current[id]) delete weightInputRefs.current[id];
+    if (repsInputRefs.current[id]) delete repsInputRefs.current[id];
   }
 
   async function saveSession() {
@@ -129,6 +171,7 @@ export default function ExerciseDetail({ route, navigation }: Props) {
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
       setExercise((ex) => (ex ? { ...ex, sessions: [session, ...ex.sessions] } : ex));
       setSets([]);
+      setTimeout(() => addEmptySet(true), 80);
       Alert.alert('Saved', 'Session saved locally');
     } catch (err) {
       console.warn(err);
@@ -136,27 +179,52 @@ export default function ExerciseDetail({ route, navigation }: Props) {
     }
   }
 
+  // Open emoji picker for a given set: dismiss keyboard first (so the picker isn't overlaid)
   function openEmojiPickerForSet(setId: string) {
+    // Dismiss keyboard immediately so the picker is shown cleanly
+    Keyboard.dismiss();
     setEmojiPickerTargetSetId(setId);
     setCustomEmojiInput('');
-    setEmojiPickerVisible(true);
+    // small timeout to ensure keyboard fully hides before modal opens (avoids flicker on some devices)
+    setTimeout(() => setEmojiPickerVisible(true), 60);
   }
 
+  // When user picks an emoji from the palette
   function chooseEmoji(emoji: string) {
     if (!emojiPickerTargetSetId) return;
+    // update the set first
     updateSet(emojiPickerTargetSetId, { difficultyEmoji: emoji });
+
+    // Close the picker and ensure keyboard stays dismissed.
+    // Delay hiding the modal slightly to avoid re-focusing race conditions on some keyboards.
     setEmojiPickerVisible(false);
     setEmojiPickerTargetSetId(null);
+
+    // Ensure keyboard is hidden — call after modal closed
+    setTimeout(() => Keyboard.dismiss(), 80);
   }
 
+  // When user enters a custom emoji and confirms
   function chooseCustomEmoji() {
     const val = customEmojiInput.trim();
     if (!val) {
       Alert.alert('Enter an emoji');
       return;
     }
-    chooseEmoji(val);
+
+    // Apply the custom emoji
+    if (emojiPickerTargetSetId) {
+      updateSet(emojiPickerTargetSetId, { difficultyEmoji: val });
+    }
+
+    // Close UI and keep keyboard hidden
+    setEmojiPickerVisible(false);
+    setEmojiPickerTargetSetId(null);
+    setCustomEmojiInput('');
+
+    setTimeout(() => Keyboard.dismiss(), 80);
   }
+
 
   async function deleteSession(sessionId: string) {
     if (!exercise) return;
@@ -185,6 +253,23 @@ export default function ExerciseDetail({ route, navigation }: Props) {
     ]);
   }
 
+  // Focus the next empty field: weight first, then reps. If none, add a new set and focus it.
+  const focusNextEmpty = useCallback(() => {
+    for (let i = 0; i < sets.length; i++) {
+      const s = sets[i];
+      if (s.weight === null) {
+        weightInputRefs.current[s.id]?.focus();
+        return;
+      }
+      if (s.reps === null) {
+        repsInputRefs.current[s.id]?.focus();
+        return;
+      }
+    }
+    // nothing empty — create a new set and focus its weight
+    addEmptySet(true);
+  }, [sets]);
+
   if (!exercise) {
     return (
       <View style={styles.center}>
@@ -200,142 +285,174 @@ export default function ExerciseDetail({ route, navigation }: Props) {
       style={{ flex: 1 }}
       behavior={Platform.select({ ios: 'padding', android: undefined })}
     >
-      <SafeAreaView style={styles.container}>
-        <Text style={styles.title}>{exercise.title}</Text>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <SafeAreaView style={styles.container}>
+          <Text style={styles.title}>{exercise.title}</Text>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Current session (unsaved)</Text>
-          <FlatList
-            data={sets}
-            keyExtractor={(i) => i.id}
-            renderItem={({ item, index }) => {
-              return (
-                <View style={styles.setRow}>
-                  <Text style={styles.setIndex}>{index + 1}</Text>
-
-                  {/* Weight Input */}
-                  <TextInput
-                    ref={(ref) => { weightInputRefs.current[item.id] = ref; }} // Assign ref dynamically
-                    style={styles.smallInput}
-                    placeholder="kg"
-                    keyboardType="numeric"
-                    value={item.weight === null ? '' : String(item.weight)}
-                    onChangeText={(t) => updateSet(item.id, { weight: t === '' ? null : Number(t) })}
-                    returnKeyType="next"
-                    onSubmitEditing={() => repsInputRef.current?.focus()} // Focus on the next input
-                  />
-
-                  {/* Reps Input */}
-                  <TextInput
-                    ref={repsInputRef}
-                    style={styles.smallInput}
-                    placeholder="reps"
-                    keyboardType="numeric"
-                    value={item.reps === null ? '' : String(item.reps)}
-                    onChangeText={(t) => updateSet(item.id, { reps: t === '' ? null : Number(t) })}
-                    returnKeyType="next"
-                    onSubmitEditing={() => openEmojiPickerForSet(item.id)} // Open the emoji picker
-                  />
-
-                  {/* Emoji Input */}
-                  <TouchableOpacity
-                    style={styles.emojiPill}
-                    onPress={() => openEmojiPickerForSet(item.id)}
-                    accessibilityLabel="Pick difficulty emoji"
-                  >
-                    <Text style={styles.emojiText}>{item.difficultyEmoji}</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity onPress={() => removeSet(item.id)} style={styles.removeBtn}>
-                    <Text style={{ color: '#ff3b30' }}>Remove</Text>
-                  </TouchableOpacity>
-                </View>
-              );
-            }}
-            ListEmptyComponent={
-              <View style={{ padding: 8 }}>
-                <Text style={{ color: '#666' }}>No sets yet — add one</Text>
-              </View>
-            }
-            keyboardShouldPersistTaps="handled"
-            nestedScrollEnabled={false}
-          />
-
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            <TouchableOpacity style={styles.addSetBtn} onPress={addEmptySet}>
-              <Text style={{ color: '#fff' }}>Add set</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.saveBtn} onPress={saveSession}>
-              <Text style={{ color: '#fff' }}>Save session</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {lastSession && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Most recent saved session</Text>
-            <Text style={{ color: '#444' }}>
-              {new Date(lastSession.createdAt).toLocaleString()} — {lastSession.sets.length} sets
-            </Text>
-            {exercise.sessions.map((session) => (
-              <View key={session.id} style={{ marginTop: 8 }}>
-                <Text style={{ fontWeight: '600' }}>
-                  {new Date(session.createdAt).toLocaleString()}
-                </Text>
-                {session.sets.map((s) => (
-                  <Text key={s.id}>
-                    {s.reps ?? '-'} reps @ {s.weight ?? '-'}kg {s.difficultyEmoji}
-                  </Text>
-                ))}
-              </View>
-            ))}
-          </View>
-        )}
+            <Text style={styles.sectionTitle}>Current session (unsaved)</Text>
+            <FlatList
+              keyboardShouldPersistTaps="handled"
+              nestedScrollEnabled={false}
+              data={sets}
+              keyExtractor={(i) => i.id}
+              renderItem={({ item, index }) => {
+                return (
+                  <View style={styles.setRow}>
+                    <Text style={styles.setIndex}>{index + 1}</Text>
 
-        {/* Emoji picker modal */}
-        <Modal visible={emojiPickerVisible} animationType="slide" transparent>
-          <View style={styles.modalOverlay}>
-            <View style={styles.pickerContainer}>
-              <Text style={styles.pickerTitle}>Pick an emoji</Text>
+                    {/* Weight Input */}
+                    <TextInput
+                      ref={(ref) => { weightInputRefs.current[item.id] = ref; }}
+                      style={styles.smallInput}
+                      placeholder="kg"
+                      keyboardType={Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'numeric'}
+                      value={item.weight === null ? '' : String(item.weight)}
+                      onChangeText={(raw) => {
+                        const sanitized = sanitizeDecimalInput(raw);
+                        // if user cleared field, set null so Save validation works
+                        if (sanitized === '') {
+                          updateSet(item.id, { weight: null });
+                        } else {
+                          // parseFloat is safe here; you could also keep the string in state if you prefer
+                          const n = Number(sanitized);
+                          updateSet(item.id, { weight: Number.isNaN(n) ? null : n });
+                        }
+                      }}
+                      returnKeyType="next"
+                      returnKeyLabel="Next"
+                      onSubmitEditing={() => {
+                        repsInputRefs.current[item.id]?.focus();
+                      }}
+                      blurOnSubmit={false}
+                    />
 
-              <FlatList
-                data={EMOJI_PALETTE}
-                numColumns={5}
-                keyExtractor={(e) => e}
-                renderItem={({ item }) => (
-                  <Pressable
-                    onPress={() => chooseEmoji(item)}
-                    style={({ pressed }) => [
-                      styles.emojiButton,
-                      pressed ? { opacity: 0.6 } : null,
-                    ]}
-                  >
-                    <Text style={styles.emojiBig}>{item}</Text>
-                  </Pressable>
-                )}
-                contentContainerStyle={{ paddingBottom: 10 }}
-              />
 
-              <Text style={{ marginTop: 6, marginBottom: 4 }}>Or paste a custom emoji</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <TextInput
-                  style={[styles.input, { flex: 1 }]}
-                  placeholder="e.g. 😬"
-                  value={customEmojiInput}
-                  onChangeText={setCustomEmojiInput}
-                />
-                <TouchableOpacity style={styles.pickerChooseBtn} onPress={chooseCustomEmoji}>
-                  <Text style={{ color: '#fff' }}>Use</Text>
-                </TouchableOpacity>
-              </View>
+                    {/* Reps Input */}
+                    <TextInput
+                      ref={(ref) => { repsInputRefs.current[item.id] = ref; }}
+                      style={styles.smallInput}
+                      placeholder="reps"
+                      keyboardType={Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'numeric'}
+                      value={item.reps === null ? '' : String(item.reps)}
+                      onChangeText={(raw) => {
+                        const sanitized = sanitizeIntegerInput(raw);
+                        if (sanitized === '') {
+                          updateSet(item.id, { reps: null });
+                        } else {
+                          // parseInt and guard against NaN
+                          const n = parseInt(sanitized, 10);
+                          updateSet(item.id, { reps: Number.isNaN(n) ? null : n });
+                        }
+                      }}
+                      returnKeyType="next"
+                      returnKeyLabel="Next"
+                      onSubmitEditing={() => openEmojiPickerForSet(item.id)}
+                      blurOnSubmit={false}
+                    />
+                    {/* Emoji Input */}
+                    <TouchableOpacity
+                      style={styles.emojiPill}
+                      onPress={() => openEmojiPickerForSet(item.id)}
+                      accessibilityLabel="Pick difficulty emoji"
+                    >
+                      <Text style={styles.emojiText}>{item.difficultyEmoji}</Text>
+                    </TouchableOpacity>
 
-              <TouchableOpacity style={styles.pickerClose} onPress={() => setEmojiPickerVisible(false)}>
-                <Text style={{ color: '#007AFF' }}>Close</Text>
+                    {/* Conditional Remove: hide for first empty set */}
+                    {(sets.length > 1 || item.weight != null || item.reps != null) ? (
+                      <TouchableOpacity onPress={() => removeSet(item.id)} style={styles.removeBtn}>
+                        <Text style={{ color: '#ff3b30' }}>Remove</Text>
+                      </TouchableOpacity>
+                    ) : (
+                      <View style={{ width: 64 }} />
+                    )}
+                  </View>
+                );
+              }}
+              ListEmptyComponent={
+                <View style={{ padding: 8 }}>
+                  <Text style={{ color: '#666' }}>No sets yet — add one</Text>
+                </View>
+              }
+            />
+
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <TouchableOpacity style={styles.addSetBtn} onPress={() => addEmptySet(true)}>
+                <Text style={{ color: '#fff' }}>Add set</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.saveBtn} onPress={saveSession}>
+                <Text style={{ color: '#fff' }}>Save session</Text>
               </TouchableOpacity>
             </View>
           </View>
-        </Modal>
-      </SafeAreaView>
+
+          {lastSession && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Most recent saved session</Text>
+              <Text style={{ color: '#444' }}>
+                {new Date(lastSession.createdAt).toLocaleString()} — {lastSession.sets.length} sets
+              </Text>
+              {exercise.sessions.map((session) => (
+                <View key={session.id} style={{ marginTop: 8 }}>
+                  <Text style={{ fontWeight: '600' }}>
+                    {new Date(session.createdAt).toLocaleString()}
+                  </Text>
+                  {session.sets.map((s) => (
+                    <Text key={s.id}>
+                      {s.reps ?? '-'} reps @ {s.weight ?? '-'}kg {s.difficultyEmoji}
+                    </Text>
+                  ))}
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Emoji picker modal */}
+          <Modal visible={emojiPickerVisible} animationType="slide" transparent>
+            <View style={styles.modalOverlay}>
+              <View style={styles.pickerContainer}>
+                <Text style={styles.pickerTitle}>Pick an emoji</Text>
+
+                <FlatList
+                  data={EMOJI_PALETTE}
+                  numColumns={5}
+                  keyExtractor={(e) => e}
+                  renderItem={({ item }) => (
+                    <Pressable
+                      onPress={() => chooseEmoji(item)}
+                      style={({ pressed }) => [
+                        styles.emojiButton,
+                        pressed ? { opacity: 0.6 } : null,
+                      ]}
+                    >
+                      <Text style={styles.emojiBig}>{item}</Text>
+                    </Pressable>
+                  )}
+                  contentContainerStyle={{ paddingBottom: 10 }}
+                />
+
+                <Text style={{ marginTop: 6, marginBottom: 4 }}>Or paste a custom emoji</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <TextInput
+                    style={[styles.input, { flex: 1 }]}
+                    placeholder="e.g. 😬"
+                    value={customEmojiInput}
+                    onChangeText={setCustomEmojiInput}
+                  />
+                  <TouchableOpacity style={styles.pickerChooseBtn} onPress={chooseCustomEmoji}>
+                    <Text style={{ color: '#fff' }}>Use</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <TouchableOpacity style={styles.pickerClose} onPress={() => setEmojiPickerVisible(false)}>
+                  <Text style={{ color: '#007AFF' }}>Close</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Modal>
+        </SafeAreaView>
+      </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
   );
 }
