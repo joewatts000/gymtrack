@@ -241,17 +241,6 @@ You can test in two ways:
 
 ---
 
-## 🧼 Common Issues
-
-| Error | Fix |
-|-------|-----|
-| `crypto.getRandomValues() not supported` | Replace `uuid` import with `import 'react-native-get-random-values'; import { v4 as uuidv4 } from 'uuid';` |
-| `PanGestureHandler must be used as a descendant of GestureHandlerRootView` | Wrap app root in `<GestureHandlerRootView>` |
-| `SafeAreaView deprecated` | Use from `react-native-safe-area-context` |
-| `VirtualizedLists should not be nested` | Avoid `ScrollView` wrapping `FlatList`; use nested `FlatList` instead |
-
----
-
 ## 👥 Team Onboarding Summary
 
 1. Clone the repo  
@@ -267,7 +256,7 @@ You can test in two ways:
 
 **Author:** [@joewatts000](https://github.com/joewatts000)  
 **Platform:** Expo + React Native  
-**License:** MIT (if open source)
+**License:** MIT
 
 ---
 
@@ -279,7 +268,7 @@ You can test in two ways:
 - Custom emojis  
 - Shared workouts  
 - iPad optimization
+- Android
+- Web
 
 ---
-
-🫶 *Built with care for strength, focus, and progress.*
