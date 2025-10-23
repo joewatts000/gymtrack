@@ -1,24 +1,26 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  FlatList,
   KeyboardAvoidingView,
   Platform,
   Alert,
   Modal,
   Pressable,
-  SafeAreaView,
   Keyboard,
-  TouchableWithoutFeedback
+  TouchableWithoutFeedback,
+  ScrollView,
+  FlatList
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { ExercisesStackParamList } from '../navigation/exercises-stack';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { v4 as uuidv4 } from 'uuid';
+import { useWindowDimensions } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
 
 type Props = NativeStackScreenProps<ExercisesStackParamList, 'ExerciseDetail'>;
 
@@ -44,10 +46,7 @@ type SetItem = {
 
 const STORAGE_KEY = 'gymwatch:exercises';
 
-const EMOJI_PALETTE = [
-  '💪', '😅', '😓', '🔥', '😰', '😵‍💫', '😎', '🤯', '🙂', '🙃',
-  '😬', '😣', '😫', '🤝', '✨', '🏋️', '🏃', '🧘', '🤸‍♂️', '🥵',
-];
+const EMOJI_PALETTE = ['😎', '😅', '😓', '🔥', '😫'];
 
 // allow decimal input (weight). Keeps only digits and one decimal point.
 // Accepts leading '.' (becomes '0.')
@@ -70,8 +69,10 @@ function sanitizeIntegerInput(value: string) {
 }
 
 
-export default function ExerciseDetail({ route }: Props) {
+export default function ExerciseDetail({ route, navigation }: Props) {
   const { exerciseId } = route.params;
+  const { height: windowHeight } = useWindowDimensions();
+  const prevSessionsMax = Math.round(windowHeight * 0.5); // 50% of viewport, adjust as needed
   const [exercise, setExercise] = useState<Exercise | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -80,7 +81,6 @@ export default function ExerciseDetail({ route }: Props) {
 
   const [emojiPickerVisible, setEmojiPickerVisible] = useState(false);
   const [emojiPickerTargetSetId, setEmojiPickerTargetSetId] = useState<string | null>(null);
-  const [customEmojiInput, setCustomEmojiInput] = useState('');
 
   // Refs for inputs per-set
   const weightInputRefs = useRef<{ [key: string]: TextInput | null }>({});
@@ -121,15 +121,23 @@ export default function ExerciseDetail({ route }: Props) {
   // addEmptySet optionally focuses the new weight input when `focus` is true
   function addEmptySet(focus = false) {
     const newSetId = uuidv4();
-    setSets((s) => {
-      const next = [...s, { id: newSetId, weight: null, reps: null, difficultyEmoji: '💪' }];
-      return next;
+    let added = false;
+    setSets((prev) => {
+      const last = prev[prev.length - 1];
+      // don't add a new empty set if the last set is already empty
+      if (last && last.weight === null && last.reps === null) {
+        added = false;
+        return prev;
+      }
+      added = true;
+      return [...prev, { id: newSetId, weight: null, reps: null, difficultyEmoji: '💪' }];
     });
 
-    if (focus) {
+    if (focus && added) {
+      // give React time to render the new input, then focus it
       setTimeout(() => {
         weightInputRefs.current[newSetId]?.focus();
-      }, 120);
+      }, 160);
     }
   }
 
@@ -149,14 +157,17 @@ export default function ExerciseDetail({ route }: Props) {
 
   async function saveSession() {
     if (!exercise) return;
-    if (sets.length === 0) {
+    // exclude trailing empty sets (both weight and reps are null)
+    const setsToSave = sets.filter((s) => s.weight !== null || s.reps !== null);
+    if (setsToSave.length === 0) {
       Alert.alert('Add at least one set');
       return;
     }
+
     const session: Session = {
       id: uuidv4(),
       createdAt: new Date().toISOString(),
-      sets,
+      sets: setsToSave,
     };
 
     try {
@@ -172,7 +183,7 @@ export default function ExerciseDetail({ route }: Props) {
       setExercise((ex) => (ex ? { ...ex, sessions: [session, ...ex.sessions] } : ex));
       setSets([]);
       setTimeout(() => addEmptySet(true), 80);
-      Alert.alert('Saved', 'Session saved locally');
+      navigation.goBack();
     } catch (err) {
       console.warn(err);
       Alert.alert('Save failed');
@@ -184,7 +195,6 @@ export default function ExerciseDetail({ route }: Props) {
     // Dismiss keyboard immediately so the picker is shown cleanly
     Keyboard.dismiss();
     setEmojiPickerTargetSetId(setId);
-    setCustomEmojiInput('');
     // small timeout to ensure keyboard fully hides before modal opens (avoids flicker on some devices)
     setTimeout(() => setEmojiPickerVisible(true), 60);
   }
@@ -202,73 +212,11 @@ export default function ExerciseDetail({ route }: Props) {
 
     // Ensure keyboard is hidden — call after modal closed
     setTimeout(() => Keyboard.dismiss(), 80);
+
+    // After the user picks an emoji for the current set, ensure there's an empty set ready.
+    // addEmptySet already guards against creating duplicate empty sets.
+    setTimeout(() => addEmptySet(true), 160);
   }
-
-  // When user enters a custom emoji and confirms
-  function chooseCustomEmoji() {
-    const val = customEmojiInput.trim();
-    if (!val) {
-      Alert.alert('Enter an emoji');
-      return;
-    }
-
-    // Apply the custom emoji
-    if (emojiPickerTargetSetId) {
-      updateSet(emojiPickerTargetSetId, { difficultyEmoji: val });
-    }
-
-    // Close UI and keep keyboard hidden
-    setEmojiPickerVisible(false);
-    setEmojiPickerTargetSetId(null);
-    setCustomEmojiInput('');
-
-    setTimeout(() => Keyboard.dismiss(), 80);
-  }
-
-
-  async function deleteSession(sessionId: string) {
-    if (!exercise) return;
-    Alert.alert('Delete session?', 'This will remove the saved session.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            const raw = await AsyncStorage.getItem(STORAGE_KEY);
-            const arr: Exercise[] = raw ? JSON.parse(raw) : [];
-            const next = arr.map((e) => {
-              if (e.id !== exercise.id) return e;
-              return { ...e, sessions: e.sessions.filter((s) => s.id !== sessionId) };
-            });
-            await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-            const updated = next.find((e) => e.id === exercise.id) || null;
-            setExercise(updated);
-          } catch (err) {
-            console.warn('Failed to delete session', err);
-            Alert.alert('Delete failed', 'Could not delete session. Please try again.');
-          }
-        },
-      },
-    ]);
-  }
-
-  // Focus the next empty field: weight first, then reps. If none, add a new set and focus it.
-  const focusNextEmpty = useCallback(() => {
-    for (let i = 0; i < sets.length; i++) {
-      const s = sets[i];
-      if (s.weight === null) {
-        weightInputRefs.current[s.id]?.focus();
-        return;
-      }
-      if (s.reps === null) {
-        repsInputRefs.current[s.id]?.focus();
-        return;
-      }
-    }
-    // nothing empty — create a new set and focus its weight
-    addEmptySet(true);
-  }, [sets]);
 
   if (!exercise) {
     return (
@@ -278,8 +226,6 @@ export default function ExerciseDetail({ route }: Props) {
     );
   }
 
-  const lastSession = exercise.sessions[0];
-
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
@@ -287,95 +233,83 @@ export default function ExerciseDetail({ route }: Props) {
     >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
         <SafeAreaView style={styles.container}>
-          <Text style={styles.title}>{exercise.title}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.title}>{exercise.title}</Text>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Current session (unsaved)</Text>
-            <FlatList
-              keyboardShouldPersistTaps="handled"
-              nestedScrollEnabled={false}
-              data={sets}
-              keyExtractor={(i) => i.id}
-              renderItem={({ item, index }) => {
-                return (
-                  <View style={styles.setRow}>
-                    <Text style={styles.setIndex}>{index + 1}</Text>
-
-                    {/* Weight Input */}
-                    <TextInput
-                      ref={(ref) => { weightInputRefs.current[item.id] = ref; }}
-                      style={styles.smallInput}
-                      placeholder="kg"
-                      keyboardType={Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'numeric'}
-                      value={item.weight === null ? '' : String(item.weight)}
-                      onChangeText={(raw) => {
-                        const sanitized = sanitizeDecimalInput(raw);
-                        // if user cleared field, set null so Save validation works
-                        if (sanitized === '') {
-                          updateSet(item.id, { weight: null });
-                        } else {
-                          // parseFloat is safe here; you could also keep the string in state if you prefer
-                          const n = Number(sanitized);
-                          updateSet(item.id, { weight: Number.isNaN(n) ? null : n });
-                        }
-                      }}
-                      returnKeyType="next"
-                      returnKeyLabel="Next"
-                      onSubmitEditing={() => {
-                        repsInputRefs.current[item.id]?.focus();
-                      }}
-                      blurOnSubmit={false}
-                    />
-
-
-                    {/* Reps Input */}
-                    <TextInput
-                      ref={(ref) => { repsInputRefs.current[item.id] = ref; }}
-                      style={styles.smallInput}
-                      placeholder="reps"
-                      keyboardType={Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'numeric'}
-                      value={item.reps === null ? '' : String(item.reps)}
-                      onChangeText={(raw) => {
-                        const sanitized = sanitizeIntegerInput(raw);
-                        if (sanitized === '') {
-                          updateSet(item.id, { reps: null });
-                        } else {
-                          // parseInt and guard against NaN
-                          const n = parseInt(sanitized, 10);
-                          updateSet(item.id, { reps: Number.isNaN(n) ? null : n });
-                        }
-                      }}
-                      returnKeyType="next"
-                      returnKeyLabel="Next"
-                      onSubmitEditing={() => openEmojiPickerForSet(item.id)}
-                      blurOnSubmit={false}
-                    />
-                    {/* Emoji Input */}
-                    <TouchableOpacity
-                      style={styles.emojiPill}
-                      onPress={() => openEmojiPickerForSet(item.id)}
-                      accessibilityLabel="Pick difficulty emoji"
-                    >
-                      <Text style={styles.emojiText}>{item.difficultyEmoji}</Text>
-                    </TouchableOpacity>
-
-                    {/* Conditional Remove: hide for first empty set */}
-                    {(sets.length > 1 || item.weight != null || item.reps != null) ? (
-                      <TouchableOpacity onPress={() => removeSet(item.id)} style={styles.removeBtn}>
-                        <Text style={{ color: '#ff3b30' }}>Remove</Text>
-                      </TouchableOpacity>
-                    ) : (
-                      <View style={{ width: 64 }} />
-                    )}
-                  </View>
-                );
-              }}
-              ListEmptyComponent={
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Current session (unsaved)</Text>
+              {sets.length === 0 && (
                 <View style={{ padding: 8 }}>
                   <Text style={{ color: '#666' }}>No sets yet — add one</Text>
                 </View>
-              }
-            />
+              )}
+
+              {sets.map((item, index) => (
+                <View key={item.id} style={styles.setRow}>
+                  <Text style={styles.setIndex}>{index + 1}</Text>
+
+                  <TextInput
+                    ref={(ref) => { weightInputRefs.current[item.id] = ref; }}
+                    style={styles.smallInput}
+                    placeholder="kg"
+                    keyboardType={Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'numeric'}
+                    value={item.weight === null ? '' : String(item.weight)}
+                    onChangeText={(raw) => {
+                      const sanitized = sanitizeDecimalInput(raw);
+                      if (sanitized === '') {
+                        updateSet(item.id, { weight: null });
+                      } else {
+                        const n = Number(sanitized);
+                        updateSet(item.id, { weight: Number.isNaN(n) ? null : n });
+                      }
+                    }}
+                    returnKeyType="next"
+                    returnKeyLabel="Next"
+                    onSubmitEditing={() => {
+                      repsInputRefs.current[item.id]?.focus();
+                    }}
+                    blurOnSubmit={false}
+                  />
+
+                  <TextInput
+                    ref={(ref) => { repsInputRefs.current[item.id] = ref; }}
+                    style={styles.smallInput}
+                    placeholder="reps"
+                    keyboardType={Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'numeric'}
+                    value={item.reps === null ? '' : String(item.reps)}
+                    onChangeText={(raw) => {
+                      const sanitized = sanitizeIntegerInput(raw);
+                      if (sanitized === '') {
+                        updateSet(item.id, { reps: null });
+                      } else {
+                        const n = parseInt(sanitized, 10);
+                        updateSet(item.id, { reps: Number.isNaN(n) ? null : n });
+                      }
+                    }}
+                    returnKeyType="next"
+                    returnKeyLabel="Next"
+                    onSubmitEditing={() => openEmojiPickerForSet(item.id)}
+                    blurOnSubmit={false}
+                  />
+
+                  <TouchableOpacity
+                    style={styles.emojiPill}
+                    onPress={() => openEmojiPickerForSet(item.id)}
+                    accessibilityLabel="Pick difficulty emoji"
+                  >
+                    <Text style={styles.emojiText}>{item.difficultyEmoji}</Text>
+                  </TouchableOpacity>
+
+                  {(sets.length > 1 || item.weight != null || item.reps != null) ? (
+                    <TouchableOpacity onPress={() => removeSet(item.id)} style={styles.removeBtn}>
+                      <Text style={{ color: '#ff3b30' }}>Remove</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <View style={{ width: 64 }} />
+                  )}
+                </View>
+              ))}
+            </View>
 
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <TouchableOpacity style={styles.addSetBtn} onPress={() => addEmptySet(true)}>
@@ -385,35 +319,38 @@ export default function ExerciseDetail({ route }: Props) {
                 <Text style={{ color: '#fff' }}>Save session</Text>
               </TouchableOpacity>
             </View>
-          </View>
 
-          {lastSession && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Most recent saved session</Text>
-              <Text style={{ color: '#444' }}>
-                {new Date(lastSession.createdAt).toLocaleString()} — {lastSession.sets.length} sets
-              </Text>
-              {exercise.sessions.map((session) => (
-                <View key={session.id} style={{ marginTop: 8 }}>
-                  <Text style={{ fontWeight: '600' }}>
-                    {new Date(session.createdAt).toLocaleString()}
-                  </Text>
-                  {session.sets.map((s) => (
-                    <Text key={s.id}>
-                      {s.reps ?? '-'} reps @ {s.weight ?? '-'}kg {s.difficultyEmoji}
-                    </Text>
+            {/* Previous sessions — only this area scrolls when there are many entries */}
+            {exercise.sessions.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Previous sessions</Text>
+                <ScrollView
+                  style={[styles.prevSessionsScroll, { maxHeight: prevSessionsMax }]}
+                  contentContainerStyle={{ paddingBottom: 6 }}
+                  keyboardShouldPersistTaps="handled"
+                >
+                  {exercise.sessions.map((session) => (
+                    <View key={session.id} style={{ marginTop: 8 }}>
+                      <Text style={{ fontWeight: '600' }}>
+                        {new Date(session.createdAt).toLocaleString()}
+                      </Text>
+                      {session.sets.map((s) => (
+                        <Text key={s.id}>
+                          {s.reps ?? '-'} reps @ {s.weight ?? '-'}kg {s.difficultyEmoji}
+                        </Text>
+                      ))}
+                    </View>
                   ))}
-                </View>
-              ))}
-            </View>
-          )}
+                </ScrollView>
+              </View>
+            )}
+          </View>
 
           {/* Emoji picker modal */}
           <Modal visible={emojiPickerVisible} animationType="slide" transparent>
             <View style={styles.modalOverlay}>
               <View style={styles.pickerContainer}>
                 <Text style={styles.pickerTitle}>Pick an emoji</Text>
-
                 <FlatList
                   data={EMOJI_PALETTE}
                   numColumns={5}
@@ -431,20 +368,6 @@ export default function ExerciseDetail({ route }: Props) {
                   )}
                   contentContainerStyle={{ paddingBottom: 10 }}
                 />
-
-                <Text style={{ marginTop: 6, marginBottom: 4 }}>Or paste a custom emoji</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <TextInput
-                    style={[styles.input, { flex: 1 }]}
-                    placeholder="e.g. 😬"
-                    value={customEmojiInput}
-                    onChangeText={setCustomEmojiInput}
-                  />
-                  <TouchableOpacity style={styles.pickerChooseBtn} onPress={chooseCustomEmoji}>
-                    <Text style={{ color: '#fff' }}>Use</Text>
-                  </TouchableOpacity>
-                </View>
-
                 <TouchableOpacity style={styles.pickerClose} onPress={() => setEmojiPickerVisible(false)}>
                   <Text style={{ color: '#007AFF' }}>Close</Text>
                 </TouchableOpacity>
@@ -535,6 +458,8 @@ const styles = StyleSheet.create({
     padding: 10,
     marginBottom: 12,
   },
-  pickerChooseBtn: { backgroundColor: '#007AFF', paddingHorizontal: 12, paddingVertical: 10, borderRadius: 8 },
   pickerClose: { marginTop: 10, alignItems: 'center' },
+  prevSessionsScroll: {
+    marginTop: 8,
+  },
 });
