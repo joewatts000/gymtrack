@@ -12,6 +12,18 @@ export type RootTabParamList = {
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
 
+const tabBarActiveTintColor = '#007AFF';
+const tabBarInactiveTintColor = 'gray';
+
+const ICONS: Record<
+  keyof RootTabParamList,
+  { active: keyof typeof Ionicons.glyphMap; inactive: keyof typeof Ionicons.glyphMap }
+> = {
+  Home: { active: 'home', inactive: 'home-outline' },
+  ExercisesTab: { active: 'list', inactive: 'list-outline' },
+  Profile: { active: 'person', inactive: 'person-outline' },
+};
+
 export default function RootTabs() {
   return (
     <Tab.Navigator
@@ -19,24 +31,20 @@ export default function RootTabs() {
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarIcon: ({ focused, color, size }) => {
-          let name: keyof typeof Ionicons.glyphMap = 'ellipse';
-
-          if (route.name === 'Home') {
-            name = focused ? 'home' : 'home-outline';
-          } else if (route.name === 'ExercisesTab') {
-            name = focused ? 'list' : 'list-outline';
-          } else if (route.name === 'Profile') {
-            name = focused ? 'person' : 'person-outline';
-          }
-
+          const { active, inactive } = ICONS[route.name];
+          const name = focused ? active : inactive;
           return <Ionicons name={name} size={size} color={color} />;
         },
-        tabBarActiveTintColor: '#007AFF',
-        tabBarInactiveTintColor: 'gray',
+        tabBarActiveTintColor,
+        tabBarInactiveTintColor,
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="ExercisesTab" component={ExercisesStack} options={{ title: 'Exercises' }} />
+      <Tab.Screen
+        name="ExercisesTab"
+        component={ExercisesStack}
+        options={{ title: 'Exercises' }}
+      />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );
