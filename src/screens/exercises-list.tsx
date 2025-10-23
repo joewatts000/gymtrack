@@ -173,22 +173,6 @@ export default function ExercisesList() {
     ]);
   }
 
-  async function deleteSession(exerciseId: string, sessionId: string) {
-    // not used here, but useful reference for session-level deletes later
-    const arr = exercises.map((e) => {
-      if (e.id !== exerciseId) return e;
-      return { ...e, sessions: e.sessions.filter((s) => s.id !== sessionId) };
-    });
-    setExercises(arr);
-    try {
-      await persist(arr);
-    } catch (err) {
-      console.warn('Failed to persist session delete', err);
-      Alert.alert('Delete failed', 'Could not delete session. Please try again.');
-      await load();
-    }
-  }
-
   async function refresh() {
     setLoading(true);
     await load();
