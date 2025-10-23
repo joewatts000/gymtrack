@@ -1,16 +1,12 @@
-import { View, Text, StyleSheet } from 'react-native';
+import { JSX } from 'react';
+import Screen from '../components/Screen';
+import { Title, Subtitle } from '../components/Typography';
 
-export default function ProfileScreen() {
+export default function ProfileScreen(): JSX.Element {
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Profile</Text>
-      <Text style={styles.subtitle}>User settings, preferences and account.</Text>
-    </View>
+    <Screen>
+      <Title>Profile</Title>
+      <Subtitle accessibilityLabel="Profile description">User settings, preferences and account.</Subtitle>
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
-  title: { fontSize: 28, fontWeight: '700', marginBottom: 8 },
-  subtitle: { fontSize: 16, color: '#666', textAlign: 'center' },
-});
