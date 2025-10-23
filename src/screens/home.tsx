@@ -1,6 +1,6 @@
 import { JSX } from 'react';
-import Screen from '../components/Screen';
-import { Title, Subtitle } from '../components/Typography';
+import Screen from '../components/screen-view';
+import { Title, Subtitle } from '../components/typography-components';
 
 export default function HomeScreen(): JSX.Element {
   return (
