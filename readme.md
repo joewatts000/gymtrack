@@ -114,7 +114,7 @@ GymWatch uses **EAS Build** to create iOS builds and deploy to TestFlight or the
 eas login
 ```
 
-### 2. Configure project (already done)
+### 2. Configure project
 
 Check your `eas.json` file:
 
