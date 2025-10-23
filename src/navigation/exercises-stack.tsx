@@ -11,9 +11,23 @@ const Stack = createNativeStackNavigator<ExercisesStackParamList>();
 
 export default function ExercisesStack() {
   return (
-    <Stack.Navigator>
-      <Stack.Screen name="ExercisesList" component={ExercisesList} options={{ title: 'Exercises' }} />
-      <Stack.Screen name="ExerciseDetail" component={ExerciseDetail} options={{ title: 'Exercise' }} />
+    <Stack.Navigator
+      initialRouteName="ExercisesList"
+      screenOptions={{
+        headerStyle: { backgroundColor: '#fff' },
+        headerTintColor: '#000',
+      }}
+    >
+      <Stack.Screen
+        name="ExercisesList"
+        component={ExercisesList}
+        options={{ title: 'Exercises' }}
+      />
+      <Stack.Screen
+        name="ExerciseDetail"
+        component={ExerciseDetail}
+        options={{ title: 'Exercise' }}
+      />
     </Stack.Navigator>
   );
 }
