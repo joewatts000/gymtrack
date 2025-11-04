@@ -12,13 +12,14 @@ export default function AddExerciseModal({ visible, onCancel, onSubmit, submitti
   const [title, setTitle] = useState('');
 
   useEffect(() => {
-    if (visible) setTitle('');
+    if (visible) {
+      setTitle('');
+    }
   }, [visible]);
 
   function handleCreate() {
     const trimmed = title.trim();
     if (!trimmed) {
-      // simple alert—parent can do more complex behavior
       return;
     }
     Keyboard.dismiss();
