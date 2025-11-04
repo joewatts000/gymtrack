@@ -11,10 +11,10 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Swipeable } from 'react-native-gesture-handler';
 import useExercises from '../../hooks/use-exercises';
-import ExerciseRow from '../../components/exercise-row';
-import AddExerciseModal from '../../components/add-exercise-modal';
-import FloatingAddButton from '../../components/floating-add-button';
-import EmptyState from '../../components/empty-state';
+import ExerciseRow from './components/exercise-row';
+import AddExerciseModal from './components/add-exercise-modal';
+import FloatingAddButton from './components/floating-add-button';
+import EmptyState from './components/empty-state';
 import { ExercisesStackParamList } from '../../navigation/exercises-stack';
 
 type NavProp = NativeStackNavigationProp<ExercisesStackParamList, 'ExercisesList'>;

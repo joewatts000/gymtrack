@@ -2,7 +2,7 @@ import { useRef } from 'react';
 import { View, Text, TouchableOpacity, Animated } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
-import { Exercise } from '../types/exercises';
+import { Exercise } from '../../../types/exercises';
 
 type Props = {
   item: Exercise;
