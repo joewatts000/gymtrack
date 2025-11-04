@@ -1,13 +1,9 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import InputText from '../atoms/input-text';
-import EmojiPill from '../atoms/emoji-pill';
+import InputText from '../../../components/atoms/input-text';
+import EmojiPill from '../../../components/atoms/emoji-pill';
+import { SetItem } from '../types';
 
-type SetItem = {
-  id: string;
-  weight: number | null;
-  reps: number | null;
-  difficultyEmoji: string;
-};
+
 
 type Props = {
   item: SetItem;
@@ -20,7 +16,7 @@ type Props = {
   showRemove?: boolean;
 };
 
-export default function SetRow({
+export default function Set({
   item,
   index,
   onChange,
@@ -33,7 +29,6 @@ export default function SetRow({
   return (
     <View style={styles.row}>
       <Text style={styles.index}>{index + 1}</Text>
-
       <InputText
         ref={weightRef as React.Ref<any>}
         style={styles.input}
@@ -41,7 +36,6 @@ export default function SetRow({
         value={item.weight === null ? '' : String(item.weight)}
         onChangeText={(t: string) => onChange(item.id, { weight: t === '' ? null : Number(t) })}
       />
-
       <InputText
         ref={repsRef as React.Ref<any>}
         style={styles.input}
@@ -49,9 +43,7 @@ export default function SetRow({
         value={item.reps === null ? '' : String(item.reps)}
         onChangeText={(t: string) => onChange(item.id, { reps: t === '' ? null : Number(t) })}
       />
-
       <EmojiPill emoji={item.difficultyEmoji} onPress={() => onOpenEmoji(item.id)} />
-
       {showRemove ? (
         <TouchableOpacity onPress={() => onRemove(item.id)} style={styles.remove}>
           <Text style={{ color: '#ff3b30' }}>Remove</Text>

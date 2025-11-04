@@ -1,0 +1,180 @@
+import {
+  View,
+  Text,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  Alert,
+  Keyboard,
+  TouchableWithoutFeedback
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { v4 as uuidv4 } from 'uuid';
+import { useEffect, useRef, useState } from 'react';
+import type { ExercisesStackParamList } from '../../navigation/exercises-stack';
+import EmojiPicker from '../../components/molecules/emoji-picker';
+import { loadExercises, saveExercises } from '../../services/storage';
+import { ExerciseNotFound } from './components/exercise-not-found';
+import { Buttons } from './components/buttons';
+import { Sessions } from './components/sessions';
+import { Exercise, Session, SetItem } from './types';
+import { Sets } from './components/sets';
+
+type Props = NativeStackScreenProps<ExercisesStackParamList, 'ExerciseDetail'>;
+
+export default function ExerciseDetail({ route, navigation }: Props) {
+  const { exerciseId } = route.params;
+  const [exercise, setExercise] = useState<Exercise | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [sets, setSets] = useState<SetItem[]>([]);
+  const [emojiPickerVisible, setEmojiPickerVisible] = useState(false);
+  const [emojiPickerTargetSetId, setEmojiPickerTargetSetId] = useState<string | null>(null);
+
+  const weightInputRefs = useRef<{ [key: string]: any }>({});
+  const repsInputRefs = useRef<{ [key: string]: any }>({});
+
+  useEffect(() => {
+    const fetchExercise = async () => {
+      setLoading(true);
+      try {
+        const all = await loadExercises();
+        const ex = all.find((e) => e.id === exerciseId) || null;
+        setExercise(ex);
+      } catch (err) {
+        console.warn(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchExercise();
+  }, [exerciseId]);
+
+  useEffect(() => {
+    if (!loading && sets.length === 0) {
+      setTimeout(() => addEmptySet(true), 80);
+    }
+  }, [loading]);
+
+  function addEmptySet(focus = false) {
+    const newSetId = uuidv4();
+    let added = false;
+    setSets((prev) => {
+      const last = prev[prev.length - 1];
+      if (last && last.weight === null && last.reps === null) {
+        return prev;
+      }
+      added = true;
+      return [...prev, { id: newSetId, weight: null, reps: null, difficultyEmoji: '💪' }];
+    });
+    if (focus && added) {
+      setTimeout(() => {
+        weightInputRefs.current[newSetId]?.focus();
+      }, 160);
+    }
+  }
+
+  function updateSet(id: string, patch: Partial<SetItem>) {
+    setSets((s) => s.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+  }
+
+  function removeSet(id: string) {
+    setSets((s) => s.filter((x) => x.id !== id));
+    delete weightInputRefs.current[id];
+    delete repsInputRefs.current[id];
+  }
+
+  async function saveSession() {
+    if (!exercise) return;
+    const setsToSave = sets.filter((s) => s.weight !== null || s.reps !== null);
+    if (setsToSave.length === 0) {
+      Alert.alert('Add at least one set');
+      return;
+    }
+
+    const session: Session = {
+      id: uuidv4(),
+      createdAt: new Date().toISOString(),
+      sets: setsToSave,
+    };
+
+    try {
+      const all = await loadExercises();
+      const updated = all.map((e) =>
+        e.id === exercise.id ? { ...e, sessions: [session, ...e.sessions] } : e
+      );
+      await saveExercises(updated);
+
+      // update local state
+      setExercise((ex) => (ex ? { ...ex, sessions: [session, ...ex.sessions] } : ex));
+      setSets([]);
+      setTimeout(() => addEmptySet(true), 80);
+      navigation.goBack();
+    } catch (err) {
+      console.warn(err);
+      Alert.alert('Save failed');
+    }
+  }
+
+  function openEmojiPickerForSet(setId: string) {
+    Keyboard.dismiss();
+    setEmojiPickerTargetSetId(setId);
+    setTimeout(() => setEmojiPickerVisible(true), 60);
+  }
+
+  function chooseEmoji(emoji: string) {
+    if (!emojiPickerTargetSetId) {
+      return;
+    }
+    updateSet(emojiPickerTargetSetId, { difficultyEmoji: emoji });
+    setEmojiPickerVisible(false);
+    setEmojiPickerTargetSetId(null);
+    setTimeout(() => Keyboard.dismiss(), 80);
+    setTimeout(() => addEmptySet(true), 160);
+  }
+
+  if (!exercise) {
+    return (
+      <ExerciseNotFound />
+    );
+  }
+
+  return (
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.select({ ios: 'padding', android: undefined })}
+    >
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <SafeAreaView style={styles.container}>
+          <Text style={styles.title}>{exercise.title}</Text>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Current session (unsaved)</Text>
+            <Sets
+              sets={sets}
+              updateSet={updateSet}
+              removeSet={removeSet}
+              openEmojiPickerForSet={openEmojiPickerForSet}
+              weightInputRefs={weightInputRefs}
+              repsInputRefs={repsInputRefs}
+            />
+          </View>
+          <Buttons addEmptySet={addEmptySet} saveSession={saveSession} />
+          {exercise.sessions.length > 0 && <Sessions exercise={exercise} />}
+          <EmojiPicker
+            visible={emojiPickerVisible}
+            onSelect={chooseEmoji}
+            onClose={() => setEmojiPickerVisible(false)}
+          />
+        </SafeAreaView>
+      </TouchableWithoutFeedback>
+    </KeyboardAvoidingView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, padding: 16, backgroundColor: '#fff' },
+  title: { fontSize: 22, fontWeight: '700', marginBottom: 12 },
+  section: { marginBottom: 18 },
+  sectionTitle: { fontSize: 14, fontWeight: '700', marginBottom: 8 },
+  prevSessionsScroll: { marginTop: 8 },
+});

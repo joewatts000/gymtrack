@@ -1,6 +1,6 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import ExercisesList from '../screens/exercises-list';
-import ExerciseDetail from '../screens/exercises-detail';
+import ExercisesList from '../screens/exercise-list';
+import ExerciseDetail from '../screens/exercise-detail';
 
 export type ExercisesStackParamList = {
   ExercisesList: undefined;
