@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import HomeScreen from '../screens/home';
 import ProfileScreen from '../screens/profile';
 import ExercisesStack from './exercises-stack';
+import { colors } from '../theme';
 
 export type RootTabParamList = {
   Home: undefined;
@@ -12,7 +13,7 @@ export type RootTabParamList = {
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
 
-const tabBarActiveTintColor = '#007AFF';
+const tabBarActiveTintColor = colors.darkBlue;
 const tabBarInactiveTintColor = 'gray';
 
 const ICONS: Record<

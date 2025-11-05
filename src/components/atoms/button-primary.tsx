@@ -26,7 +26,7 @@ export default function ButtonPrimary({ children, onPress, style, disabled, test
 
 const styles = StyleSheet.create({
   btn: {
-    backgroundColor: colors.primary,
+    backgroundColor: colors.darkBlue,
     paddingVertical: spacing.s12,
     paddingHorizontal: spacing.s16,
     borderRadius: 10,

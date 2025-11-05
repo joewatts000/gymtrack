@@ -20,6 +20,7 @@ import { Buttons } from './components/buttons';
 import { Sessions } from './components/sessions';
 import { Exercise, Session, SetItem } from './types';
 import { Sets } from './components/sets';
+import HeaderBottomLine from '../../components/header-bottom-line';
 
 type Props = NativeStackScreenProps<ExercisesStackParamList, 'ExerciseDetail'>;
 
@@ -144,6 +145,7 @@ export default function ExerciseDetail({ route, navigation }: Props) {
       style={{ flex: 1 }}
       behavior={Platform.select({ ios: 'padding', android: undefined })}
     >
+      <HeaderBottomLine />
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <SafeAreaView style={styles.container}>
           <Text style={styles.title}>{exercise.title}</Text>

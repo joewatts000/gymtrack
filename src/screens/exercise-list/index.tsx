@@ -16,6 +16,7 @@ import AddExerciseModal from './components/add-exercise-modal';
 import FloatingAddButton from './components/floating-add-button';
 import EmptyState from './components/empty-state';
 import { ExercisesStackParamList } from '../../navigation/exercises-stack';
+import HeaderBottomLine from '../../components/header-bottom-line';
 
 type NavProp = NativeStackNavigationProp<ExercisesStackParamList, 'ExercisesList'>;
 
@@ -101,6 +102,7 @@ export default function ExercisesList() {
 
   return (
     <View style={styles.container}>
+      <HeaderBottomLine />
       {loading ? (
         <View style={{ padding: 20, alignItems: 'center' }}>
           <ActivityIndicator />

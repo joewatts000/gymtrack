@@ -1,6 +1,7 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import ExercisesList from '../screens/exercise-list';
 import ExerciseDetail from '../screens/exercise-detail';
+import { colors } from '../theme';
 
 export type ExercisesStackParamList = {
   ExercisesList: undefined;
@@ -15,7 +16,7 @@ export default function ExercisesStack() {
       initialRouteName="ExercisesList"
       screenOptions={{
         headerStyle: { backgroundColor: '#fff' },
-        headerTintColor: '#000',
+        headerTintColor: colors.darkBlue,
       }}
     >
       <Stack.Screen
