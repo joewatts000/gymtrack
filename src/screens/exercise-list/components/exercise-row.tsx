@@ -67,7 +67,7 @@ export default function ExerciseRow({ item, onPress, onDelete, onSetOpenSwipeabl
       ref={(r) => { swipeRef.current = r; }}
     >
       <TouchableOpacity style={styles.row} onPress={onPress}>
-        <View style={{ flex: 1 }}>
+        <View style={styles.flex}>
           <Text style={styles.title}>{item.title}</Text>
           {item.sessions.length > 0 ? (
             <Text style={styles.meta}>
@@ -94,6 +94,9 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  flex: {
+    flex: 1,
   },
   title: {
     fontSize: 16,

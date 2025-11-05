@@ -3,13 +3,12 @@ import { TouchableOpacity, Text, StyleSheet } from 'react-native';
 type Props = {
   emoji: string;
   onPress?: () => void;
-  size?: number;
 };
 
-export default function EmojiPill({ emoji, onPress, size = 20 }: Props) {
+export default function EmojiPill({ emoji, onPress }: Props) {
   return (
     <TouchableOpacity onPress={onPress} style={styles.pill}>
-      <Text style={{ fontSize: size }}>{emoji}</Text>
+      <Text style={styles.emoji}>{emoji}</Text>
     </TouchableOpacity>
   );
 }
@@ -24,5 +23,8 @@ const styles = StyleSheet.create({
     minWidth: 44,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  emoji: {
+    fontSize: 20,
   },
 });

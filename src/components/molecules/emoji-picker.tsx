@@ -21,14 +21,17 @@ export default function EmojiPicker({ visible, onSelect, onClose }: Props) {
             renderItem={({ item }) => (
               <Pressable
                 onPress={() => onSelect(item)}
-                style={({ pressed }) => [styles.emojiButton, pressed && { opacity: 0.6 }]}
+                style={({ pressed }) => [
+                  styles.emojiButton,
+                  pressed && styles.emojiButtonPressed,
+                ]}
               >
                 <Text style={styles.emojiBig}>{item}</Text>
               </Pressable>
             )}
           />
           <TouchableOpacity style={styles.close} onPress={onClose}>
-            <Text style={{ color: '#007AFF' }}>Close</Text>
+            <Text style={styles.closeText}>Close</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -59,6 +62,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: '#fafafa',
   },
+  emojiButtonPressed: {
+    opacity: 0.6,
+  },
   emojiBig: { fontSize: 28 },
   close: { marginTop: 10, alignItems: 'center' },
+  closeText: { color: '#007AFF' },
 });

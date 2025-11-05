@@ -1,4 +1,4 @@
-import { View } from "react-native";
+import { View, StyleSheet } from "react-native";
 import ButtonPrimary from "../../../components/atoms/button-primary";
 
 type ButtonsProps = {
@@ -8,13 +8,23 @@ type ButtonsProps = {
 
 export function Buttons({ addEmptySet, saveSession }: ButtonsProps) {
   return (
-    <View style={{ flexDirection: 'row', gap: 8 }}>
-      <ButtonPrimary onPress={() => addEmptySet(true)} style={{ flex: 1 }}>
+    <View style={styles.row}>
+      <ButtonPrimary onPress={() => addEmptySet(true)} style={styles.button}>
         Add set
       </ButtonPrimary>
-      <ButtonPrimary onPress={saveSession} style={{ flex: 1 }}>
+      <ButtonPrimary onPress={saveSession} style={styles.button}>
         Save session
       </ButtonPrimary>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  button: {
+    flex: 1,
+  },
+});

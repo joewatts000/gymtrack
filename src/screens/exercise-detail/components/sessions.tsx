@@ -10,13 +10,13 @@ export function Sessions({ exercise }: { exercise: Exercise }) {
       <Text style={styles.sectionTitle}>Previous sessions</Text>
       <ScrollView
         style={[styles.prevSessionsScroll, { maxHeight: prevSessionsMax }]}
-        contentContainerStyle={{ paddingBottom: 6 }}
+        contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
         {exercise.sessions.map((session) => (
-          <View key={session.id} style={{ marginTop: 8 }}>
-            <Text style={{ fontWeight: '600' }}>
+          <View key={session.id} style={styles.sessionBlock}>
+            <Text style={styles.sessionDate}>
               {new Date(session.createdAt).toLocaleString()}
             </Text>
             {session.sets.map((s) => (
@@ -35,4 +35,7 @@ const styles = StyleSheet.create({
   section: { marginBottom: 18 },
   sectionTitle: { fontSize: 14, fontWeight: '700', marginBottom: 8 },
   prevSessionsScroll: { marginTop: 8 },
+  scrollContent: { paddingBottom: 6 },
+  sessionBlock: { marginTop: 8 },
+  sessionDate: { fontWeight: '600' },
 });

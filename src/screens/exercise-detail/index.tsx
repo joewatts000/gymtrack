@@ -142,7 +142,7 @@ export default function ExerciseDetail({ route, navigation }: Props) {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1 }}
+      style={styles.flex}
       behavior={Platform.select({ ios: 'padding', android: undefined })}
     >
       <HeaderBottomLine />
@@ -174,6 +174,9 @@ export default function ExerciseDetail({ route, navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
   container: { flex: 1, padding: 16, backgroundColor: '#fff' },
   title: { fontSize: 22, fontWeight: '700', marginBottom: 12 },
   section: { marginBottom: 18 },

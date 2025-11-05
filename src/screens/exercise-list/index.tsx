@@ -104,7 +104,7 @@ export default function ExercisesList() {
     <View style={styles.container}>
       <HeaderBottomLine />
       {loading ? (
-        <View style={{ padding: 20, alignItems: 'center' }}>
+        <View style={styles.loading}>
           <ActivityIndicator />
         </View>
       ) : (
@@ -112,7 +112,7 @@ export default function ExercisesList() {
           data={exercises}
           keyExtractor={(i) => i.id}
           renderItem={renderItem}
-          contentContainerStyle={{ padding: 16, paddingBottom: 120 }}
+          contentContainerStyle={styles.listContent}
           ListEmptyComponent={<EmptyState />}
           refreshing={loading}
           onRefresh={refresh}
@@ -131,33 +131,8 @@ export default function ExercisesList() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
-  row: {
-    backgroundColor: '#f7f7f8',
-    padding: 16,
-    borderRadius: 10,
-    marginBottom: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  title: { fontSize: 18, fontWeight: '600' },
-  meta: { color: '#666', marginTop: 4 },
-  smallMeta: { color: '#999', marginTop: 4, fontSize: 12 },
-  addButton: {
-    position: 'absolute',
-    right: 20,
-    bottom: 34,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#007AFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.12,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 8,
-    elevation: 6,
-  },
+  loading: { padding: 20, alignItems: 'center' },
+  listContent: { padding: 16, paddingBottom: 120 },
   empty: { padding: 32, alignItems: 'center' },
   emptyTitle: { fontSize: 20, fontWeight: '600', marginBottom: 6 },
   emptySub: { color: '#666', textAlign: 'center' },

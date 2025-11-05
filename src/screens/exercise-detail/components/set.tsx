@@ -46,10 +46,10 @@ export default function Set({
       <EmojiPill emoji={item.difficultyEmoji} onPress={() => onOpenEmoji(item.id)} />
       {showRemove ? (
         <TouchableOpacity onPress={() => onRemove(item.id)} style={styles.remove}>
-          <Text style={{ color: '#ff3b30' }}>Remove</Text>
+          <Text style={styles.removeText}>Remove</Text>
         </TouchableOpacity>
       ) : (
-        <View style={{ width: 64 }} />
+        <View style={styles.removePlaceholder} />
       )}
     </View>
   );
@@ -60,4 +60,6 @@ const styles = StyleSheet.create({
   index: { width: 20, fontWeight: '600' },
   input: { marginRight: 8, minWidth: 64 },
   remove: { marginLeft: 'auto' },
+  removeText: { color: '#ff3b30' },
+  removePlaceholder: { width: 64 },
 });
