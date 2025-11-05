@@ -21,6 +21,7 @@ import { Sessions } from './components/sessions';
 import { Exercise, Session, SetItem } from './types';
 import { Sets } from './components/sets';
 import HeaderBottomLine from '../../components/header-bottom-line';
+import EditableTitle from '../../components/atoms/editable-title';
 
 type Props = NativeStackScreenProps<ExercisesStackParamList, 'ExerciseDetail'>;
 
@@ -134,6 +135,18 @@ export default function ExerciseDetail({ route, navigation }: Props) {
     setTimeout(() => addEmptySet(true), 160);
   }
 
+  async function updateExerciseTitle(newTitle: string) {
+    if (!exercise) {
+      return;
+    }
+    const all = await loadExercises();
+    const updated = all.map((e) =>
+      e.id === exercise.id ? { ...e, title: newTitle } : e
+    );
+    await saveExercises(updated);
+    setExercise((ex) => (ex ? { ...ex, title: newTitle } : ex));
+  }
+
   if (!exercise) {
     return (
       <ExerciseNotFound />
@@ -148,7 +161,11 @@ export default function ExerciseDetail({ route, navigation }: Props) {
       <HeaderBottomLine />
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <SafeAreaView style={styles.container}>
-          <Text style={styles.title}>{exercise.title}</Text>
+          <EditableTitle
+            value={exercise.title}
+            onChange={updateExerciseTitle}
+            style={styles.title}
+          />
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Current session (unsaved)</Text>
             <Sets
