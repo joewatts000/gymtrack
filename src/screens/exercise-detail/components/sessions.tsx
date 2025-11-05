@@ -1,10 +1,20 @@
 import { Text, View, ScrollView, StyleSheet, useWindowDimensions } from "react-native";
 import { Exercise } from "../types";
+import { SessionDate } from "./session-date";
+import { SetSummary } from "./set-summary";
+import { colors } from "../../../theme";
 
 
 export function Sessions({ exercise }: { exercise: Exercise }) {
   const { height: windowHeight } = useWindowDimensions();
   const prevSessionsMax = Math.round(windowHeight * 0.5);
+
+  // Split sessions into rows of 2 for the grid
+  const sessionRows = [];
+  for (let i = 0; i < exercise.sessions.length; i += 2) {
+    sessionRows.push(exercise.sessions.slice(i, i + 2));
+  }
+
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>Previous sessions</Text>
@@ -14,16 +24,17 @@ export function Sessions({ exercise }: { exercise: Exercise }) {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {exercise.sessions.map((session) => (
-          <View key={session.id} style={styles.sessionBlock}>
-            <Text style={styles.sessionDate}>
-              {new Date(session.createdAt).toLocaleString()}
-            </Text>
-            {session.sets.map((s) => (
-              <Text key={s.id}>
-                {s.reps ?? '-'} reps @ {s.weight ?? '-'}kg {s.difficultyEmoji}
-              </Text>
+        {sessionRows.map((row, rowIdx) => (
+          <View style={styles.row} key={rowIdx}>
+            {row.map((session) => (
+              <View key={session.id} style={styles.sessionBlock}>
+                <SessionDate createdAt={session.createdAt} />
+                {session.sets.map((set) => (
+                  <SetSummary set={set} key={set.id} />
+                ))}
+              </View>
             ))}
+            {row.length < 2 ? <View style={styles.sessionBlock} /> : null}
           </View>
         ))}
       </ScrollView>
@@ -32,10 +43,22 @@ export function Sessions({ exercise }: { exercise: Exercise }) {
 }
 
 const styles = StyleSheet.create({
-  section: { marginBottom: 18 },
+  section: { marginBottom: 18, marginTop: 22 },
   sectionTitle: { fontSize: 14, fontWeight: '700', marginBottom: 8 },
   prevSessionsScroll: { marginTop: 8 },
   scrollContent: { paddingBottom: 6 },
-  sessionBlock: { marginTop: 8 },
-  sessionDate: { fontWeight: '600' },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 12,
+  },
+  sessionBlock: {
+    flex: 1,
+    backgroundColor: colors.darkBlue,
+    borderRadius: 10,
+    padding: 10,
+    marginHorizontal: 2,
+    minWidth: 0,
+  },
 });

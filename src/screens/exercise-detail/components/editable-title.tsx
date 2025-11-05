@@ -7,7 +7,7 @@ type Props = {
   style?: any;
 };
 
-export default function EditableTitle({ value, onChange, style }: Props) {
+export default function EditableTitle({ value, onChange }: Props) {
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(value);
   const inputRef = useRef<TextInput>(null);
@@ -28,7 +28,7 @@ export default function EditableTitle({ value, onChange, style }: Props) {
   return editing ? (
     <TextInput
       ref={inputRef}
-      style={[styles.input, style]}
+      style={styles.input}
       value={text}
       onChangeText={setText}
       onBlur={finishEdit}
@@ -38,7 +38,7 @@ export default function EditableTitle({ value, onChange, style }: Props) {
     />
   ) : (
     <TouchableOpacity onPress={startEdit}>
-      <Text style={style}>{value}</Text>
+      <Text style={styles.text}>{value}</Text>
     </TouchableOpacity>
   );
 }
@@ -53,4 +53,5 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     paddingHorizontal: 4,
   },
+  text: { fontSize: 22, fontWeight: '700', marginBottom: 12 },
 });

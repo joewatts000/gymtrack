@@ -164,7 +164,6 @@ export default function ExerciseDetail({ route, navigation }: Props) {
           <EditableTitle
             value={exercise.title}
             onChange={updateExerciseTitle}
-            style={styles.title}
           />
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Current session (unsaved)</Text>
@@ -194,8 +193,13 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
   },
-  container: { flex: 1, padding: 16, backgroundColor: '#fff' },
-  title: { fontSize: 22, fontWeight: '700', marginBottom: 12 },
+  container: {
+    flex: 1,
+    paddingLeft: 16,
+    paddingRight: 16,
+    paddingTop: 0,
+    paddingBottom: 0,
+  },
   section: { marginBottom: 18 },
   sectionTitle: { fontSize: 14, fontWeight: '700', marginBottom: 8 },
   prevSessionsScroll: { marginTop: 8 },
