@@ -21,7 +21,7 @@ import { Sessions } from './components/sessions';
 import { Exercise, Session, SetItem } from './types';
 import { Sets } from './components/sets';
 import HeaderBottomLine from '../../components/header-bottom-line';
-import EditableTitle from '../../components/atoms/editable-title';
+import EditableTitle from './components/editable-title';
 
 type Props = NativeStackScreenProps<ExercisesStackParamList, 'ExerciseDetail'>;
 
