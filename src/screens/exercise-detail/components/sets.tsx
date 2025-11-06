@@ -5,7 +5,6 @@ export function Sets({
   sets,
   updateSet,
   removeSet,
-  openEmojiPickerForSet,
   weightInputRefs,
   repsInputRefs,
 }: any) {
@@ -19,7 +18,6 @@ export function Sets({
           index={index}
           onChange={updateSet}
           onRemove={removeSet}
-          onOpenEmoji={openEmojiPickerForSet}
           weightRef={(r) => (weightInputRefs.current[item.id] = r)}
           repsRef={(r) => (repsInputRefs.current[item.id] = r)}
           showRemove={sets.length > 1 || item.weight != null || item.reps != null}

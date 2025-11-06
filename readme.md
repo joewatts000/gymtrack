@@ -1,7 +1,7 @@
 # 🏋️‍♂️ GymWatch
 
 **GymWatch** is a cross-platform fitness tracking app built with **React Native** and **Expo**.  
-Users can log exercises, record sets (weight, reps, and difficulty via emoji), and view past sessions.  
+Users can log exercises, record sets (weight, reps, and difficulty), and view past sessions.  
 Data is stored locally for quick offline access.
 
 ---
@@ -265,7 +265,6 @@ You can test in two ways:
 - Cloud sync & login  
 - Workout analytics  
 - Graphs & trends  
-- Custom emojis  
 - Shared workouts  
 - iPad optimization
 - Android

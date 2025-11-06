@@ -13,15 +13,14 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { v4 as uuidv4 } from 'uuid';
 import { useEffect, useRef, useState } from 'react';
 import type { ExercisesStackParamList } from '../../navigation/exercises-stack';
-import EmojiPicker from '../../components/molecules/emoji-picker';
 import { loadExercises, saveExercises } from '../../services/storage';
 import { ExerciseNotFound } from './components/exercise-not-found';
 import { Buttons } from './components/buttons';
 import { Sessions } from './components/sessions';
-import { Exercise, Session, SetItem } from './types';
 import { Sets } from './components/sets';
 import HeaderBottomLine from '../../components/header-bottom-line';
 import EditableTitle from './components/editable-title';
+import { Exercise, Session, SetItem } from '../../types/exercises';
 
 type Props = NativeStackScreenProps<ExercisesStackParamList, 'ExerciseDetail'>;
 
@@ -30,9 +29,6 @@ export default function ExerciseDetail({ route, navigation }: Props) {
   const [exercise, setExercise] = useState<Exercise | null>(null);
   const [loading, setLoading] = useState(true);
   const [sets, setSets] = useState<SetItem[]>([]);
-  const [emojiPickerVisible, setEmojiPickerVisible] = useState(false);
-  const [emojiPickerTargetSetId, setEmojiPickerTargetSetId] = useState<string | null>(null);
-
   const weightInputRefs = useRef<{ [key: string]: any }>({});
   const repsInputRefs = useRef<{ [key: string]: any }>({});
 
@@ -67,7 +63,7 @@ export default function ExerciseDetail({ route, navigation }: Props) {
         return prev;
       }
       added = true;
-      return [...prev, { id: newSetId, weight: null, reps: null, difficultyEmoji: '💪' }];
+      return [...prev, { id: newSetId, weight: null, reps: null, difficultyLight: 'green' }];
     });
     if (focus && added) {
       setTimeout(() => {
@@ -118,23 +114,6 @@ export default function ExerciseDetail({ route, navigation }: Props) {
     }
   }
 
-  function openEmojiPickerForSet(setId: string) {
-    Keyboard.dismiss();
-    setEmojiPickerTargetSetId(setId);
-    setTimeout(() => setEmojiPickerVisible(true), 60);
-  }
-
-  function chooseEmoji(emoji: string) {
-    if (!emojiPickerTargetSetId) {
-      return;
-    }
-    updateSet(emojiPickerTargetSetId, { difficultyEmoji: emoji });
-    setEmojiPickerVisible(false);
-    setEmojiPickerTargetSetId(null);
-    setTimeout(() => Keyboard.dismiss(), 80);
-    setTimeout(() => addEmptySet(true), 160);
-  }
-
   async function updateExerciseTitle(newTitle: string) {
     if (!exercise) {
       return;
@@ -171,18 +150,12 @@ export default function ExerciseDetail({ route, navigation }: Props) {
               sets={sets}
               updateSet={updateSet}
               removeSet={removeSet}
-              openEmojiPickerForSet={openEmojiPickerForSet}
               weightInputRefs={weightInputRefs}
               repsInputRefs={repsInputRefs}
             />
           </View>
           <Buttons addEmptySet={addEmptySet} saveSession={saveSession} />
           {exercise.sessions.length > 0 && <Sessions exercise={exercise} />}
-          <EmojiPicker
-            visible={emojiPickerVisible}
-            onSelect={chooseEmoji}
-            onClose={() => setEmojiPickerVisible(false)}
-          />
         </SafeAreaView>
       </TouchableWithoutFeedback>
     </KeyboardAvoidingView>

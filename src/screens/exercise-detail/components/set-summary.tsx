@@ -7,9 +7,12 @@ export function SetSummary({ set }: any) {
       <Text style={styles.text}>
         {set.reps ?? '-'} x {set.weight ?? '-'}kg
       </Text>
-      <Text>
-        {set.difficultyEmoji}
-      </Text>
+      <View
+        style={[
+          styles.circle,
+          set.difficultyLight && { backgroundColor: set.difficultyLight }
+        ]}
+      />
     </View>
   );
 }
@@ -23,5 +26,11 @@ const styles = StyleSheet.create({
   text: {
     marginBottom: 8,
     color: colors.white
+  },
+  circle: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    alignSelf: 'center'
   }
 });

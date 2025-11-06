@@ -1,8 +1,8 @@
 import { Text, View, ScrollView, StyleSheet, useWindowDimensions } from "react-native";
-import { Exercise } from "../types";
 import { SessionDate } from "./session-date";
 import { SetSummary } from "./set-summary";
 import { colors } from "../../../theme";
+import { Exercise, Session, SetItem } from "../../../types/exercises";
 
 
 export function Sessions({ exercise }: { exercise: Exercise }) {
@@ -26,10 +26,10 @@ export function Sessions({ exercise }: { exercise: Exercise }) {
       >
         {sessionRows.map((row, rowIdx) => (
           <View style={styles.row} key={rowIdx}>
-            {row.map((session) => (
+            {row.map((session: Session) => (
               <View key={session.id} style={styles.sessionBlock}>
                 <SessionDate createdAt={session.createdAt} />
-                {session.sets.map((set) => (
+                {session.sets.map((set: SetItem) => (
                   <SetSummary set={set} key={set.id} />
                 ))}
               </View>

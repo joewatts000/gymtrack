@@ -2,7 +2,7 @@ export type SetItem = {
   id: string;
   weight: number | null;
   reps: number | null;
-  difficultyEmoji: string;
+  difficultyLight: 'red' | 'orange' | 'green';
 };
 
 export type Session = {

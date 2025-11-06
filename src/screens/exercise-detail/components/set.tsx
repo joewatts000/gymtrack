@@ -1,16 +1,14 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import InputText from '../../../components/atoms/input-text';
-import EmojiPill from '../../../components/atoms/emoji-pill';
-import { SetItem } from '../types';
-
-
+import TrafficLightPicker from '../../../components/molecules/traffic-light-picker';
+import { SetItem } from '../../../types/exercises';
+import { Ionicons } from '@expo/vector-icons';
 
 type Props = {
   item: SetItem;
   index: number;
   onChange: (id: string, patch: Partial<SetItem>) => void;
   onRemove: (id: string) => void;
-  onOpenEmoji: (id: string) => void;
   weightRef?: (r: any) => void;
   repsRef?: (r: any) => void;
   showRemove?: boolean;
@@ -21,7 +19,6 @@ export default function Set({
   index,
   onChange,
   onRemove,
-  onOpenEmoji,
   weightRef,
   repsRef,
   showRemove = true,
@@ -43,10 +40,13 @@ export default function Set({
         value={item.reps === null ? '' : String(item.reps)}
         onChangeText={(t: string) => onChange(item.id, { reps: t === '' ? null : Number(t) })}
       />
-      <EmojiPill emoji={item.difficultyEmoji} onPress={() => onOpenEmoji(item.id)} />
+      <TrafficLightPicker
+        value={item.difficultyLight ?? 'green'}
+        onSelect={(color) => onChange(item.id, { difficultyLight: color })}
+      />
       {showRemove ? (
         <TouchableOpacity onPress={() => onRemove(item.id)} style={styles.remove}>
-          <Text style={styles.removeText}>Remove</Text>
+          <Ionicons name="trash-outline" size={22} color="#ff3b30" />
         </TouchableOpacity>
       ) : (
         <View style={styles.removePlaceholder} />
