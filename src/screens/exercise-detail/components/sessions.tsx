@@ -34,7 +34,9 @@ export function Sessions({ exercise }: { exercise: Exercise }) {
                 ))}
               </View>
             ))}
-            {row.length < 2 ? <View style={styles.sessionBlock} /> : null}
+            {row.length < 2 ? (
+              <View style={[styles.sessionBlock, styles.sessionBlockEmpty]} />
+            ) : null}
           </View>
         ))}
       </ScrollView>
@@ -60,5 +62,9 @@ const styles = StyleSheet.create({
     padding: 10,
     marginHorizontal: 2,
     minWidth: 0,
+  },
+  sessionBlockEmpty: {
+    backgroundColor: 'transparent',
+    opacity: 0,
   },
 });

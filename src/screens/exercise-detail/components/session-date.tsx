@@ -6,14 +6,27 @@ interface SessionDateProps {
 }
 
 export function SessionDate({ createdAt }: SessionDateProps) {
+  const dateObj = new Date(createdAt);
+  const dateStr = dateObj
+    .toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    })
+    .replace(/\//g, '-')
+    .replace(/\./g, '-');
+
   return (
     <Text style={styles.sessionDate}>
-      {new Date(createdAt).toLocaleString()}
+      {dateStr}
     </Text>
   );
 }
 
-
 const styles = StyleSheet.create({
-  sessionDate: { fontWeight: '600', marginBottom: 8, color: colors.white },
+  sessionDate: {
+    fontWeight: '700',
+    marginBottom: 16,
+    color: colors.white
+  },
 });
