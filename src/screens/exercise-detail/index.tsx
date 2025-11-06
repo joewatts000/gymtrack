@@ -140,6 +140,39 @@ export default function ExerciseDetail({ route, navigation }: Props) {
     setExercise((ex) => (ex ? { ...ex, title: newTitle } : ex));
   }
 
+  async function onDeleteSession(sessionId: string) {
+    if (!exercise) return;
+
+    Alert.alert(
+      'Delete session?',
+      'Are you sure you want to delete this session?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const all = await loadExercises();
+              const updated = all.map((e) =>
+                e.id === exercise.id
+                  ? { ...e, sessions: e.sessions.filter((s) => s.id !== sessionId) }
+                  : e
+              );
+              await saveExercises(updated);
+              setExercise((ex) =>
+                ex ? { ...ex, sessions: ex.sessions.filter((s) => s.id !== sessionId) } : ex
+              );
+            } catch (err) {
+              console.warn(err);
+              Alert.alert('Delete failed');
+            }
+          },
+        },
+      ]
+    );
+  }
+
   if (!exercise) {
     return (
       <ExerciseNotFound />
@@ -159,7 +192,7 @@ export default function ExerciseDetail({ route, navigation }: Props) {
             onChange={updateExerciseTitle}
           />
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Current session (unsaved)</Text>
+            <Text style={styles.sectionTitle}>New session</Text>
             <Sets
               sets={sets}
               updateSet={updateSet}
@@ -169,7 +202,9 @@ export default function ExerciseDetail({ route, navigation }: Props) {
             />
           </View>
           <Buttons addEmptySet={addEmptySet} saveSession={saveSession} />
-          {exercise.sessions.length > 0 && <Sessions exercise={exercise} />}
+          {exercise.sessions.length > 0 && (
+            <Sessions exercise={exercise} onDeleteSession={onDeleteSession} />
+          )}
         </SafeAreaView>
       </TouchableWithoutFeedback>
     </KeyboardAvoidingView>

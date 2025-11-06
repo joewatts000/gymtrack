@@ -1,11 +1,17 @@
-import { Text, View, ScrollView, StyleSheet, useWindowDimensions } from "react-native";
+import { Text, View, ScrollView, StyleSheet, useWindowDimensions, TouchableOpacity } from "react-native";
 import { SessionDate } from "./session-date";
 import { SetSummary } from "./set-summary";
 import { colors } from "../../../theme";
 import { Exercise, Session, SetItem } from "../../../types/exercises";
+import { Ionicons } from '@expo/vector-icons'; // If using Expo, otherwise use any icon library
 
-
-export function Sessions({ exercise }: { exercise: Exercise }) {
+export function Sessions({
+  exercise,
+  onDeleteSession,
+}: {
+  exercise: Exercise;
+  onDeleteSession: (sessionId: string) => void;
+}) {
   const { height: windowHeight } = useWindowDimensions();
   const prevSessionsMax = Math.round(windowHeight * 0.5);
 
@@ -28,7 +34,16 @@ export function Sessions({ exercise }: { exercise: Exercise }) {
           <View style={styles.row} key={rowIdx}>
             {row.map((session: Session) => (
               <View key={session.id} style={styles.sessionBlock}>
-                <SessionDate createdAt={session.createdAt} />
+                <View style={styles.sessionHeader}>
+                  <SessionDate createdAt={session.createdAt} />
+                  <TouchableOpacity
+                    onPress={() => onDeleteSession(session.id)}
+                    style={styles.deleteBtn}
+                    accessibilityLabel="Delete session"
+                  >
+                    <Ionicons name="trash-outline" size={18} color="#fff" />
+                  </TouchableOpacity>
+                </View>
                 {session.sets.map((set: SetItem) => (
                   <SetSummary set={set} key={set.id} />
                 ))}
@@ -59,12 +74,21 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.darkBlue,
     borderRadius: 10,
-    padding: 10,
-    marginHorizontal: 2,
+    padding: 12,
+    // marginHorizontal: 2,
     minWidth: 0,
   },
   sessionBlockEmpty: {
     backgroundColor: 'transparent',
     opacity: 0,
+  },
+  sessionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  deleteBtn: {
+    marginRight: -2,
   },
 });

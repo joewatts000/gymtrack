@@ -26,7 +26,6 @@ export function SessionDate({ createdAt }: SessionDateProps) {
 const styles = StyleSheet.create({
   sessionDate: {
     fontWeight: '700',
-    marginBottom: 16,
     color: colors.white
   },
 });
