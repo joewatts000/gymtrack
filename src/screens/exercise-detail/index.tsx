@@ -160,7 +160,7 @@ export default function ExerciseDetail({ route, navigation }: Props) {
     >
       <HeaderBottomLine />
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={styles.container} edges={['left', 'right']}>
           <EditableTitle
             value={exercise.title}
             onChange={updateExerciseTitle}
@@ -195,10 +195,7 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    paddingLeft: 16,
-    paddingRight: 16,
-    paddingTop: 0,
-    paddingBottom: 0,
+    padding: 16,
   },
   section: { marginBottom: 18 },
   sectionTitle: { fontSize: 14, fontWeight: '700', marginBottom: 8 },
