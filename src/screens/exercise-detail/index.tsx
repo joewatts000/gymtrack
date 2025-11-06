@@ -83,35 +83,49 @@ export default function ExerciseDetail({ route, navigation }: Props) {
   }
 
   async function saveSession() {
-    if (!exercise) return;
+    if (!exercise) {
+      return;
+    }
     const setsToSave = sets.filter((s) => s.weight !== null || s.reps !== null);
     if (setsToSave.length === 0) {
       Alert.alert('Add at least one set');
       return;
     }
 
-    const session: Session = {
-      id: uuidv4(),
-      createdAt: new Date().toISOString(),
-      sets: setsToSave,
-    };
+    Alert.alert(
+      'Save session?',
+      'Are you sure you want to save and exit?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Save',
+          style: 'default',
+          onPress: async () => {
+            const session: Session = {
+              id: uuidv4(),
+              createdAt: new Date().toISOString(),
+              sets: setsToSave,
+            };
 
-    try {
-      const all = await loadExercises();
-      const updated = all.map((e) =>
-        e.id === exercise.id ? { ...e, sessions: [session, ...e.sessions] } : e
-      );
-      await saveExercises(updated);
+            try {
+              const all = await loadExercises();
+              const updated = all.map((e) =>
+                e.id === exercise.id ? { ...e, sessions: [session, ...e.sessions] } : e
+              );
+              await saveExercises(updated);
 
-      // update local state
-      setExercise((ex) => (ex ? { ...ex, sessions: [session, ...ex.sessions] } : ex));
-      setSets([]);
-      setTimeout(() => addEmptySet(true), 80);
-      navigation.goBack();
-    } catch (err) {
-      console.warn(err);
-      Alert.alert('Save failed');
-    }
+              setExercise((ex) => (ex ? { ...ex, sessions: [session, ...ex.sessions] } : ex));
+              setSets([]);
+              setTimeout(() => addEmptySet(true), 80);
+              navigation.goBack();
+            } catch (err) {
+              console.warn(err);
+              Alert.alert('Save failed');
+            }
+          },
+        },
+      ]
+    );
   }
 
   async function updateExerciseTitle(newTitle: string) {
