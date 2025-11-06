@@ -157,27 +157,7 @@ EAS will:
 
 ---
 
-## 🚢 Submitting to TestFlight
-
-After your build finishes:
-
-```bash
-eas submit -p ios --latest
-```
-
-This uploads the latest `.ipa` to **App Store Connect** for **TestFlight** distribution.
-
-Then go to:
-👉 [https://appstoreconnect.apple.com/apps](https://appstoreconnect.apple.com/apps)
-
-- Open your app  
-- Go to the **TestFlight** tab  
-- Add internal or external testers  
-- Wait for Apple’s processing (takes 10–20 min)
-
----
-
-## 🔁 Releasing a New Version
+## 🔁 Releasing a New Version to testflight
 
 Every time you want to push a new TestFlight or App Store build:
 
@@ -205,15 +185,28 @@ Every time you want to push a new TestFlight or App Store build:
 
 3. **Submit to TestFlight**
 
-   ```bash
-   eas submit -p ios --latest
-   ```
+After your build finishes:
 
-4. **(Optional)** Submit to **App Store**
-   - Log into [App Store Connect](https://appstoreconnect.apple.com/)
-   - Go to **App Store → Prepare for Submission**
-   - Add screenshots, description, and select the latest build
-   - Click **Submit for Review**
+```bash
+eas submit -p ios --latest
+```
+
+This uploads the latest `.ipa` to **App Store Connect** for **TestFlight** distribution.
+
+Then go to:
+👉 [https://appstoreconnect.apple.com/apps](https://appstoreconnect.apple.com/apps)
+
+- Open your app  
+- Go to the **TestFlight** tab  
+- Add internal or external testers  
+- Wait for Apple’s processing (takes 10–20 min)
+
+**(Optional)** Submit to **App Store**
+
+- Log into [App Store Connect](https://appstoreconnect.apple.com/)
+- Go to **App Store → Prepare for Submission**
+- Add screenshots, description, and select the latest build
+- Click **Submit for Review**
 
 ---
 
