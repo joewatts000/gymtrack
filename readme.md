@@ -163,7 +163,7 @@ Every time you want to push a new TestFlight or App Store build:
 
 1. **Increment version & build number** in `app.json`:
 
-   ```json
+```json
    {
      "expo": {
        "version": "0.1.2",
@@ -172,16 +172,16 @@ Every time you want to push a new TestFlight or App Store build:
        }
      }
    }
-   ```
+```
 
-   - `version` = user-visible version (`0.1.2`)
-   - `buildNumber` = internal counter (must increase every submission)
+- `version` = user-visible version (`0.1.2`)
+- `buildNumber` = internal counter (must increase every submission)
 
 2. **Run the build again**
 
-   ```bash
+```bash
    eas build -p ios --profile production
-   ```
+```
 
 3. **Submit to TestFlight**
 
